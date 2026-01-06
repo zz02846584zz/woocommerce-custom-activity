@@ -39,7 +39,8 @@ function custom_activity_load_modules() {
     }
 
     $modules = [
-        'activities/new-year-bundle-active.php' => '2026 新年優惠活動'
+        // 'activities/new-year-bundle-active.php' => '2026 新年優惠活動',
+        'activities/new-year-bundle-active/new-year-bundle-active.php' => '2026 新年優惠活動'
     ];
 
     foreach ( $modules as $file => $description ) {
