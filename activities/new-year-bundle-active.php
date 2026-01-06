@@ -20,15 +20,8 @@ define( 'NYB_CAMPAIGN_END', '2026-02-28 23:59:59' );
 define( 'NYB_DEBUG_MODE', true );
 
 // 床墊相關
-define( 'NYB_ALL_MATTRESS_PARENT_IDS', [1324, 4370, 3444] ); // 所有床墊父層ID
 define( 'NYB_LAI_MATTRESS_PARENT_IDS', [3444] ); // 所有賴床墊父層ID
 define( 'NYB_SPRING_MATTRESS_PARENT_IDS', [1324, 4370] ); // 所有嗜睡床墊父層ID
-
-define( 'NYB_ALL_MATTRESS_VARS', [
-    2735, 2736, 2737, 2738, 2739,      // 嗜睡床墊(大地系列)
-    4371, 4372, 4373, 4374, 4375,      // 嗜睡床墊(海洋系列)
-    3446, 3445, 3447, 3448, 3695, 3696 // 賴床墊
-] );
 
 define( 'NYB_LAI_MATTRESS_VARS', [3446, 3445, 3447, 3448, 3695, 3696] ); // 賴床墊
 
@@ -38,10 +31,8 @@ define( 'NYB_SPRING_MATTRESS_VARS', [
 ] );
 
 // ⚡ 性能優化：Hash Map (O(1) 查詢速度)
-define( 'NYB_ALL_MATTRESS_PARENT_IDS_MAP', array_flip( NYB_ALL_MATTRESS_PARENT_IDS ) );
 define( 'NYB_LAI_MATTRESS_PARENT_IDS_MAP', array_flip( NYB_LAI_MATTRESS_PARENT_IDS ) );
 define( 'NYB_SPRING_MATTRESS_PARENT_IDS_MAP', array_flip( NYB_SPRING_MATTRESS_PARENT_IDS ) );
-define( 'NYB_ALL_MATTRESS_VARS_MAP', array_flip( NYB_ALL_MATTRESS_VARS ) );
 define( 'NYB_LAI_MATTRESS_VARS_MAP', array_flip( NYB_LAI_MATTRESS_VARS ) );
 define( 'NYB_SPRING_MATTRESS_VARS_MAP', array_flip( NYB_SPRING_MATTRESS_VARS ) );
 
@@ -57,12 +48,6 @@ define( 'NYB_BEDDING_VALUE_MAP', [
     4374 => 4780,
     2739 => 4980,  // 雙人特大
     4375 => 4980,
-    // 3446 => 4580,  // 賴床墊-雙人
-    // 3445 => 3680,  // 賴床墊-單人
-    // 3447 => 4780,  // 賴床墊-雙人加大
-    // 3448 => 4980,  // 賴床墊-雙人特大
-    // 3695 => 3880,  // 賴床墊-單人加大
-    // 3696 => 3880,  // 賴床墊-單人加大
 ] );
 
 // 催眠枕
@@ -399,11 +384,6 @@ function nyb_analyze_cart_contents() {
 				if ( isset( NYB_LAI_MATTRESS_VARS_MAP[ $variation_id ] ) ) {
 						$stats['lai_mattress_count'] += $quantity;
 				}
-        // 床墊
-        // if ( isset( NYB_ALL_MATTRESS_VARS_MAP[ $variation_id ] ) ) {
-        //     $stats['mattress_count'] += $quantity;
-        //     $stats['mattress_vars'][] = $variation_id;
-        // }
 
         // 催眠枕
         if ( isset( NYB_HYPNOTIC_PILLOW_VARS_MAP[ $variation_id ] ) ) {
