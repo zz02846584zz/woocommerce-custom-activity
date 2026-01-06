@@ -1,136 +1,199 @@
 <?php
-
-namespace CustomActivity\NewYearBundle;
-
-use CustomActivity\NewYearBundle\Config\CampaignConfig;
-use CustomActivity\NewYearBundle\Domain\Service\LoggerInterface;
-use CustomActivity\NewYearBundle\Presentation\Hook\CartHookHandler;
-use CustomActivity\NewYearBundle\Presentation\Hook\ProductPageHookHandler;
-
 /**
- * 應用程式引導類別
- * 負責初始化整個活動系統
+ * Bootstrap 啟動類
+ *
+ * 負責：
+ * 1. 檢查活動期間
+ * 2. 初始化服務工廠
+ * 3. 註冊所有 WordPress/WooCommerce Hooks
+ * 4. 啟動外部適配器（舊有 helper 類）
  */
-final class Bootstrap
+
+namespace NewYearBundle;
+
+class Bootstrap
 {
-    private Container $container;
-    private static ?self $instance = null;
+    private ServiceFactory $factory;
+    private bool $isActive = false;
+    private static bool $initialized = false;
 
-    private function __construct()
+    public function init(): void
     {
-        $this->container = new Container();
-    }
-
-    /**
-     * 取得單例實例
-     */
-    public static function getInstance(): self
-    {
-        if (self::$instance === null) {
-            self::$instance = new self();
+        // 防止重複初始化
+        if (self::$initialized) {
+            return;
         }
+        self::$initialized = true;
 
-        return self::$instance;
-    }
-
-    /**
-     * 啟動應用程式
-     */
-    public function boot(): void
-    {
-        // 註冊自動載入器（必須在第一步）
-        $this->registerAutoloader();
-
-        // 取得 Logger
-        $logger = $this->container->get(LoggerInterface::class);
-
-        // 檢查活動期間
-        if (!CampaignConfig::isActivePeriod()) {
-            $this->logInactivePeriod($logger);
+        // 跳過不相關的請求（優化性能）
+        if ($this->shouldSkipRequest()) {
             return;
         }
 
-        $logger->info('[新年活動系統] 啟動成功');
+        // 檢查活動期間
+        if (!$this->checkCampaignPeriod()) {
+            $this->logInactivePeriod();
+            return;
+        }
 
-        // 註冊 Hook 處理器
+        $this->isActive = true;
+        $this->factory = ServiceFactory::getInstance();
+
+        // 記錄啟動日誌（包含進程資訊以便追蹤）
+        if (Config::isDebugMode()) {
+            $logger = $this->factory->createLogger();
+            $logger->info('========================================');
+            $logger->info('新年活動系統已啟動（Clean Architecture 版本）');
+            $logger->info('架構：Domain → Application → Infrastructure → Presentation');
+            $logger->info('請求類型: ' . (wp_doing_ajax() ? 'AJAX' : (is_admin() ? 'Admin' : 'Frontend')));
+            $logger->info('請求 URI: ' . ($_SERVER['REQUEST_URI'] ?? 'N/A'));
+            $logger->info('========================================');
+        }
+
+        // 初始化外部適配器（舊有 helper 類）
+        $this->initExternalAdapters();
+
+        // 註冊所有 Hooks
         $this->registerHooks();
-
-        // 初始化舊有輔助類別（向後相容）
-        $this->initLegacyHelpers();
     }
 
     /**
-     * 註冊自動載入器
+     * 判斷是否應跳過此請求（優化性能）
      */
-    private function registerAutoloader(): void
+    private function shouldSkipRequest(): bool
     {
-        $autoloader = new Autoloader(__DIR__);
-        $autoloader->register();
+        // 跳過 WordPress Cron（定時任務與活動無關）
+        if (defined('DOING_CRON') && DOING_CRON) {
+            return true;
+        }
+
+        // 跳過 REST API 請求（除非是 WooCommerce 相關）
+        if (defined('REST_REQUEST') && REST_REQUEST) {
+            $uri = $_SERVER['REQUEST_URI'] ?? '';
+            // 只允許 WooCommerce REST API
+            if (strpos($uri, '/wp-json/wc/') === false) {
+                return true;
+            }
+        }
+
+        // 跳過第三方追蹤插件的 AJAX
+        if (wp_doing_ajax()) {
+            $action = $_REQUEST['action'] ?? '';
+            $skipActions = [
+                'pys_get_pbid',           // PixelYourSite
+                'pys_',                   // 其他 PixelYourSite 動作
+                'heartbeat',              // WordPress 心跳
+                'wordfence_',             // Wordfence 安全插件
+            ];
+
+            foreach ($skipActions as $skip) {
+                if (strpos($action, $skip) === 0) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
-     * 註冊所有 Hook 處理器
+     * 檢查是否在活動期間
+     */
+    private function checkCampaignPeriod(): bool
+    {
+        $currentTime = current_time('mysql');
+        $start = Config::getCampaignStart();
+        $end = Config::getCampaignEnd();
+
+        return $currentTime >= $start && $currentTime <= $end;
+    }
+
+    /**
+     * 記錄非活動期間日誌
+     */
+    private function logInactivePeriod(): void
+    {
+        add_action('init', function() {
+            if (!Config::isDebugMode()) {
+                return;
+            }
+
+            $logger = $this->factory->createLogger();
+            $currentTime = current_time('mysql');
+
+            $logger->info(sprintf(
+                "[新年活動期間檢查] 活動未啟用 | 當前時間: %s | 活動期間: %s ~ %s",
+                $currentTime,
+                Config::getCampaignStart(),
+                Config::getCampaignEnd()
+            ));
+        }, 999);
+    }
+
+    /**
+     * 初始化外部適配器
+     */
+    private function initExternalAdapters(): void
+    {
+        // 初始化優惠券顯示適配器
+        $couponAdapter = $this->factory->createCouponDisplayAdapter();
+        $couponAdapter->init();
+
+        // 初始化虛擬商品適配器
+        $virtualProductAdapter = $this->factory->createVirtualProductAdapter();
+        $virtualProductAdapter->init();
+    }
+
+    /**
+     * 註冊所有 Hooks
      */
     private function registerHooks(): void
     {
-        // 購物車 Hook
-        $cartHandler = $this->container->get(CartHookHandler::class);
-        $cartHandler->register();
+        // 價格相關 Hooks（全館9折）
+        $pricingHooks = $this->factory->createPricingHooks();
+        $pricingHooks->register();
 
-        // 商品頁 Hook
-        $productPageHandler = $this->container->get(ProductPageHookHandler::class);
-        $productPageHandler->register();
+        // 購物車相關 Hooks
+        $cartHooks = $this->factory->createCartHooks();
+        $cartHooks->register();
 
-        // 全館9折（保留舊邏輯）
-        $this->registerDiscountHooks();
+        // 結帳相關 Hooks
+        $checkoutHooks = $this->factory->createCheckoutHooks();
+        $checkoutHooks->register();
+
+        // 訂單相關 Hooks
+        $orderHooks = $this->factory->createOrderHooks();
+        $orderHooks->register();
+
+        // 商品頁控制器
+        $productPageController = $this->factory->createProductPageController();
+        add_action('woocommerce_before_single_product', [$productPageController, 'render'], 15);
+
+        // 購物車頁控制器
+        $cartPageController = $this->factory->createCartPageController();
+        add_action('woocommerce_before_cart', [$cartPageController, 'render'], 10);
+
+        // 活動4選擇器控制器
+        $activity4Controller = $this->factory->createActivity4SelectorController();
+        add_action('woocommerce_after_cart_table', [$activity4Controller, 'render'], 5);
+        add_action('wp_ajax_nyb_update_activity4_selection', [$activity4Controller, 'handleAjaxUpdate']);
+        add_action('wp_ajax_nopriv_nyb_update_activity4_selection', [$activity4Controller, 'handleAjaxUpdate']);
     }
 
     /**
-     * 註冊全館9折 Hook（保留舊邏輯）
+     * 檢查活動是否啟用
      */
-    private function registerDiscountHooks(): void
+    public function isActive(): bool
     {
-        add_filter('woocommerce_product_get_price', 'nyb_apply_site_wide_discount', 99, 2);
-        add_filter('woocommerce_product_get_sale_price', 'nyb_apply_site_wide_discount_sale', 99, 2);
-        add_filter('woocommerce_product_variation_get_price', 'nyb_apply_site_wide_discount', 99, 2);
-        add_filter('woocommerce_product_variation_get_sale_price', 'nyb_apply_site_wide_discount_sale', 99, 2);
+        return $this->isActive;
     }
 
     /**
-     * 初始化舊有輔助類別（向後相容）
+     * 獲取服務工廠實例
      */
-    private function initLegacyHelpers(): void
+    public function getFactory(): ServiceFactory
     {
-        // 初始化優惠券顯示類別
-        if (class_exists('NYB_Activity_Coupon_Display')) {
-            \NYB_Activity_Coupon_Display::init();
-        }
-
-        // 初始化虛擬床包商品類別
-        if (class_exists('NYB_Virtual_Bedding_Product')) {
-            \NYB_Virtual_Bedding_Product::init();
-        }
-    }
-
-    /**
-     * 記錄非活動期間的日誌
-     */
-    private function logInactivePeriod(LoggerInterface $logger): void
-    {
-        $logger->warning(sprintf(
-            "[新年活動期間檢查] 活動未啟用 | 當前時間: %s | 活動期間: %s ~ %s",
-            current_time('mysql'),
-            CampaignConfig::CAMPAIGN_START,
-            CampaignConfig::CAMPAIGN_END
-        ));
-    }
-
-    /**
-     * 取得容器（用於測試或進階使用）
-     */
-    public function getContainer(): Container
-    {
-        return $this->container;
+        return $this->factory;
     }
 }
 
