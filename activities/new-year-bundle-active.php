@@ -55,16 +55,10 @@ define( 'NYB_HYPNOTIC_PILLOW_PARENT', 1307 );
 define( 'NYB_HYPNOTIC_PILLOW_VARS', [2983, 2984, 3044] );
 define( 'NYB_HYPNOTIC_PILLOW_VARS_MAP', array_flip( NYB_HYPNOTIC_PILLOW_VARS ) );
 
-// 床架
-define( 'NYB_BED_FRAME_PARENT', 4421 );
-define( 'NYB_BED_FRAME_IDS', [4930, 4929, 4422, 4423, 4424, 4425, 4426] );
-define( 'NYB_BED_FRAME_IDS_MAP', array_flip( NYB_BED_FRAME_IDS ) );
-
 // 贈品
 define( 'NYB_GIFT_FLEECE_BLANKET', 4180 );  // 茸茸被
 define( 'NYB_GIFT_HUG_PILLOW', 6346 );      // 抱枕
 define( 'NYB_GIFT_EYE_MASK', 6300 );        // 眼罩
-define( 'NYB_GIFT_SIDE_PILLOW_VAR', 3044 ); // 側睡枕variation
 
 // 天絲枕套對應 (枕頭 -> 枕套)
 define( 'NYB_PILLOWCASE_MAP', [
@@ -73,8 +67,8 @@ define( 'NYB_PILLOWCASE_MAP', [
     3044 => 5662
 ] );
 
-// 活動3特價組合價格
-define( 'NYB_COMBO_SPECIAL_PRICE', 8888 );
+// 滿額贈門檻
+define( 'NYB_THRESHOLD_AMOUNT', 50000 );
 
 // 所有贈品ID集合（用於排除9折）
 define( 'NYB_ALL_GIFT_IDS', [
@@ -252,70 +246,37 @@ function nyb_calculate_activity_status($product_id = 0) {
     $applied_activities = [];
     $stats_copy = $stats; // 複製一份用於扣減計算
 
-    // 【優先級1】活動7: 終極組合
-    if ( $stats_copy['available']['spring_mattress'] >= 1 &&
-         $stats_copy['available']['bed_frame'] >= 1 &&
-         $stats_copy['available']['hypnotic_pillow'] >= 2 ) {
-        if ( nyb_consume_item( $stats_copy, 'spring_mattress', 1, 'bundle7' ) &&
-             nyb_consume_item( $stats_copy, 'bed_frame', 1, 'bundle7' ) &&
-             nyb_consume_item( $stats_copy, 'hypnotic_pillow', 2, 'bundle7' ) ) {
-            $applied_activities[] = 'activity_7';
-            $results['activity_7'] = ['status' => 'qualified', 'missing' => []];
-        }
-    }
-
-    // 【優先級2】活動6: 床墊+床架送側睡枕
-    if ( $stats_copy['available']['spring_mattress'] >= 1 &&
-         $stats_copy['available']['bed_frame'] >= 1 ) {
-        if ( nyb_consume_item( $stats_copy, 'spring_mattress', 1, 'bundle6' ) &&
-             nyb_consume_item( $stats_copy, 'bed_frame', 1, 'bundle6' ) ) {
-            $applied_activities[] = 'activity_6';
-            $results['activity_6'] = ['status' => 'qualified', 'missing' => []];
-        }
-    }
-
-    // 【優先級3】活動5: 大禮包送天絲四件組
-    if ( $stats_copy['available']['spring_mattress'] >= 1 &&
-         $stats_copy['available']['hypnotic_pillow'] >= 2 &&
-         $stats_copy['available']['lai_mattress'] >= 1 ) {
-        if ( nyb_consume_item( $stats_copy, 'spring_mattress', 1, 'bundle5' ) &&
-             nyb_consume_item( $stats_copy, 'hypnotic_pillow', 2, 'bundle5' ) &&
-             nyb_consume_item( $stats_copy, 'lai_mattress', 1, 'bundle5' ) ) {
-            $applied_activities[] = 'activity_5';
-            $results['activity_5'] = ['status' => 'qualified', 'missing' => []];
-        }
-    }
-
-    // 【優先級4】活動3: 枕頭組合特價$8888
-    if ( $stats_copy['available']['hypnotic_pillow'] >= 2 ) {
-        if ( nyb_consume_item( $stats_copy, 'hypnotic_pillow', 2, 'bundle3' ) ) {
-            $applied_activities[] = 'activity_3';
-            $results['activity_3'] = ['status' => 'qualified', 'missing' => []];
-        }
-    }
-
-    // 【優先級5】活動4: 買枕頭送枕套
-    if ( $stats_copy['available']['hypnotic_pillow'] >= 1 ) {
-        $pillow_count = $stats_copy['available']['hypnotic_pillow'];
-        if ( nyb_consume_item( $stats_copy, 'hypnotic_pillow', $pillow_count, 'bundle4' ) ) {
+    // 【優先級1】活動4: 滿額贈天絲床包四件組
+    $cart_subtotal = $cart->get_subtotal();
+    if ( $cart_subtotal >= NYB_THRESHOLD_AMOUNT && $stats_copy['available']['any_mattress'] >= 1 ) {
+        if ( nyb_consume_item( $stats_copy, 'any_mattress', 1, 'bundle4' ) ) {
             $applied_activities[] = 'activity_4';
             $results['activity_4'] = ['status' => 'qualified', 'missing' => []];
         }
     }
 
-    // 【優先級6】活動2: 賴床墊送抱枕+眼罩
+    // 【優先級2】活動3: 賴床墊送抱枕+眼罩
     if ( $stats_copy['available']['lai_mattress'] >= 1 ) {
-        if ( nyb_consume_item( $stats_copy, 'lai_mattress', 1, 'bundle2' ) ) {
+        if ( nyb_consume_item( $stats_copy, 'lai_mattress', 1, 'bundle3' ) ) {
+            $applied_activities[] = 'activity_3';
+            $results['activity_3'] = ['status' => 'qualified', 'missing' => []];
+        }
+    }
+
+    // 【優先級3】活動2: 床墊+催眠枕送茸茸被
+    if ( $stats_copy['available']['any_mattress'] >= 1 &&
+         $stats_copy['available']['hypnotic_pillow'] >= 1 ) {
+        if ( nyb_consume_item( $stats_copy, 'any_mattress', 1, 'bundle2' ) &&
+             nyb_consume_item( $stats_copy, 'hypnotic_pillow', 1, 'bundle2' ) ) {
             $applied_activities[] = 'activity_2';
             $results['activity_2'] = ['status' => 'qualified', 'missing' => []];
         }
     }
 
-    // 【優先級7】活動1: 嗜睡床墊+催眠枕送茸茸被
-    if ( $stats_copy['available']['spring_mattress'] >= 1 &&
-         $stats_copy['available']['hypnotic_pillow'] >= 1 ) {
-        if ( nyb_consume_item( $stats_copy, 'spring_mattress', 1, 'bundle1' ) &&
-             nyb_consume_item( $stats_copy, 'hypnotic_pillow', 1, 'bundle1' ) ) {
+    // 【優先級4】活動1: 買枕頭送枕套
+    if ( $stats_copy['available']['hypnotic_pillow'] >= 1 ) {
+        $pillow_count = $stats_copy['available']['hypnotic_pillow'];
+        if ( nyb_consume_item( $stats_copy, 'hypnotic_pillow', $pillow_count, 'bundle1' ) ) {
             $applied_activities[] = 'activity_1';
             $results['activity_1'] = ['status' => 'qualified', 'missing' => []];
         }
@@ -324,169 +285,82 @@ function nyb_calculate_activity_status($product_id = 0) {
     // === 步驟2: 計算未應用活動的 almost/not_qualified 狀態 ===
     // 使用 $stats（原始數量）和 $stats_copy['available']（剩餘數量）來判斷
 
-    // 活動1
+    // 活動1: 買枕頭送枕套
     if ( ! in_array( 'activity_1', $applied_activities ) ) {
-        $total_spring = $stats['spring_mattress_count'];
-        $total_pillow = $stats['hypnotic_pillow_count'];
-        $avail_spring = $stats_copy['available']['spring_mattress'];
-        $avail_pillow = $stats_copy['available']['hypnotic_pillow'];
-
-        // 判斷缺少什麼（排除「已被使用完」的商品）
-        $missing = [];
-
-        if ( $avail_spring < 1 ) {
-            // 如果是「原本沒有」才加入 missing
-            if ( $total_spring == 0 ) {
-                $missing[] = '嗜睡床墊';
-            }
-        }
-
-        if ( $avail_pillow < 1 ) {
-            // 如果是「原本沒有」才加入 missing
-            if ( $total_pillow == 0 ) {
-                $missing[] = '催眠枕';
-            }
-        }
-
-        if ( count( $missing ) == 1 ) {
-            $results['activity_1'] = ['status' => 'almost', 'missing' => $missing];
-        } else {
-            $results['activity_1'] = ['status' => 'not_qualified', 'missing' => empty( $missing ) ? ['商品已被其他活動使用'] : $missing];
-        }
-    }
-
-    // 活動2
-    if ( ! in_array( 'activity_2', $applied_activities ) ) {
-        $total_lai = $stats['lai_mattress_count'];
-        $avail_lai = $stats_copy['available']['lai_mattress'];
-
-        // 如果購物車原本沒有賴床墊 → almost（引導購買）
-        // 如果購物車有但被用完 → not_qualified（已被其他活動使用）
-        if ( $total_lai == 0 ) {
-            $results['activity_2'] = ['status' => 'almost', 'missing' => ['賴床墊']];
-        } else {
-            $results['activity_2'] = ['status' => 'not_qualified', 'missing' => ['賴床墊']];
-        }
-    }
-
-    // 活動3
-    if ( ! in_array( 'activity_3', $applied_activities ) ) {
-        $total_pillow = $stats['hypnotic_pillow_count'];
-        $avail_pillow = $stats_copy['available']['hypnotic_pillow'];
-
-        // 需要2個枕頭
-        if ( $avail_pillow == 1 && $total_pillow < 2 ) {
-            // 有1個可用，原本就只有1個 → almost（引導購買第2個）
-            $results['activity_3'] = ['status' => 'almost', 'missing' => ['再1個催眠枕']];
-        } elseif ( $total_pillow < 2 ) {
-            // 原本就少於2個 → not_qualified
-            $results['activity_3'] = ['status' => 'not_qualified', 'missing' => ['2個催眠枕']];
-        } else {
-            // 原本有2個以上但被用完 → not_qualified
-            $results['activity_3'] = ['status' => 'not_qualified', 'missing' => ['2個催眠枕']];
-        }
-    }
-
-    // 活動4
-    if ( ! in_array( 'activity_4', $applied_activities ) ) {
         $total_pillow = $stats['hypnotic_pillow_count'];
         $avail_pillow = $stats_copy['available']['hypnotic_pillow'];
 
         // 如果購物車原本沒有枕頭 → almost（引導購買）
         // 如果購物車有但被用完 → not_qualified（已被其他活動使用）
         if ( $total_pillow == 0 ) {
-            $results['activity_4'] = ['status' => 'almost', 'missing' => ['催眠枕']];
+            $results['activity_1'] = ['status' => 'almost', 'missing' => ['催眠枕']];
         } else {
-            $results['activity_4'] = ['status' => 'not_qualified', 'missing' => ['催眠枕']];
+            $results['activity_1'] = ['status' => 'not_qualified', 'missing' => ['催眠枕']];
         }
     }
 
-    // 活動5
-    if ( ! in_array( 'activity_5', $applied_activities ) ) {
-        $total_spring = $stats['spring_mattress_count'];
-        $total_lai = $stats['lai_mattress_count'];
+    // 活動2: 床墊+催眠枕送茸茸被
+    if ( ! in_array( 'activity_2', $applied_activities ) ) {
+        $total_mattress = $stats['any_mattress_count'];
         $total_pillow = $stats['hypnotic_pillow_count'];
-        $avail_spring = $stats_copy['available']['spring_mattress'];
-        $avail_lai = $stats_copy['available']['lai_mattress'];
+        $avail_mattress = $stats_copy['available']['any_mattress'];
         $avail_pillow = $stats_copy['available']['hypnotic_pillow'];
 
         // 判斷缺少什麼（排除「已被使用完」的商品）
         $missing = [];
 
-        if ( $avail_spring < 1 && $total_spring == 0 ) {
-            $missing[] = '嗜睡床墊';
+        if ( $avail_mattress < 1 && $total_mattress == 0 ) {
+            $missing[] = '床墊';
         }
 
-        if ( $avail_lai < 1 && $total_lai == 0 ) {
-            $missing[] = '賴床墊';
-        }
-
-        if ( $avail_pillow < 2 && $total_pillow < 2 ) {
-            $need = 2 - max( 0, $avail_pillow );
-            $missing[] = sprintf( '催眠枕(還需%d個)', $need );
-        }
-
-        if ( ! empty( $missing ) && count( $missing ) <= 2 ) {
-            $results['activity_5'] = ['status' => 'almost', 'missing' => $missing];
-        } else {
-            $results['activity_5'] = ['status' => 'not_qualified', 'missing' => empty( $missing ) ? ['商品已被其他活動使用'] : $missing];
-        }
-    }
-
-    // 活動6
-    if ( ! in_array( 'activity_6', $applied_activities ) ) {
-        $total_spring = $stats['spring_mattress_count'];
-        $total_frame = $stats['bed_frame_count'];
-        $avail_spring = $stats_copy['available']['spring_mattress'];
-        $avail_frame = $stats_copy['available']['bed_frame'];
-
-        // 判斷缺少什麼（排除「已被使用完」的商品）
-        $missing = [];
-
-        if ( $avail_spring < 1 && $total_spring == 0 ) {
-            $missing[] = '嗜睡床墊';
-        }
-
-        if ( $avail_frame < 1 && $total_frame == 0 ) {
-            $missing[] = '床架';
+        if ( $avail_pillow < 1 && $total_pillow == 0 ) {
+            $missing[] = '催眠枕';
         }
 
         if ( count( $missing ) == 1 ) {
-            $results['activity_6'] = ['status' => 'almost', 'missing' => $missing];
+            $results['activity_2'] = ['status' => 'almost', 'missing' => $missing];
         } else {
-            $results['activity_6'] = ['status' => 'not_qualified', 'missing' => empty( $missing ) ? ['商品已被其他活動使用'] : $missing];
+            $results['activity_2'] = ['status' => 'not_qualified', 'missing' => empty( $missing ) ? ['商品已被其他活動使用'] : $missing];
         }
     }
 
-    // 活動7
-    if ( ! in_array( 'activity_7', $applied_activities ) ) {
-        $total_spring = $stats['spring_mattress_count'];
-        $total_frame = $stats['bed_frame_count'];
-        $total_pillow = $stats['hypnotic_pillow_count'];
-        $avail_spring = $stats_copy['available']['spring_mattress'];
-        $avail_frame = $stats_copy['available']['bed_frame'];
-        $avail_pillow = $stats_copy['available']['hypnotic_pillow'];
+    // 活動3: 賴床墊送抱枕+眼罩
+    if ( ! in_array( 'activity_3', $applied_activities ) ) {
+        $total_lai = $stats['lai_mattress_count'];
+        $avail_lai = $stats_copy['available']['lai_mattress'];
 
-        // 判斷缺少什麼（排除「已被使用完」的商品）
-        $missing = [];
-
-        if ( $avail_spring < 1 && $total_spring == 0 ) {
-            $missing[] = '嗜睡床墊';
-        }
-
-        if ( $avail_frame < 1 && $total_frame == 0 ) {
-            $missing[] = '床架';
-        }
-
-        if ( $avail_pillow < 2 && $total_pillow < 2 ) {
-            $need = 2 - max( 0, $avail_pillow );
-            $missing[] = sprintf( '催眠枕(還需%d個)', $need );
-        }
-
-        if ( ! empty( $missing ) && count( $missing ) <= 2 ) {
-            $results['activity_7'] = ['status' => 'almost', 'missing' => $missing];
+        // 如果購物車原本沒有賴床墊 → almost（引導購買）
+        // 如果購物車有但被用完 → not_qualified（已被其他活動使用）
+        if ( $total_lai == 0 ) {
+            $results['activity_3'] = ['status' => 'almost', 'missing' => ['賴床墊']];
         } else {
-            $results['activity_7'] = ['status' => 'not_qualified', 'missing' => empty( $missing ) ? ['商品已被其他活動使用'] : $missing];
+            $results['activity_3'] = ['status' => 'not_qualified', 'missing' => ['賴床墊']];
+        }
+    }
+
+    // 活動4: 滿額贈天絲床包四件組
+    if ( ! in_array( 'activity_4', $applied_activities ) ) {
+        $cart_subtotal = $cart->get_subtotal();
+        $total_mattress = $stats['any_mattress_count'];
+        $avail_mattress = $stats_copy['available']['any_mattress'];
+
+        $missing = [];
+        $amount_needed = NYB_THRESHOLD_AMOUNT - $cart_subtotal;
+
+        if ( $cart_subtotal < NYB_THRESHOLD_AMOUNT ) {
+            $missing[] = sprintf( '還差 %s', wc_price( $amount_needed ) );
+        }
+
+        if ( $avail_mattress < 1 && $total_mattress == 0 ) {
+            $missing[] = '床墊（作為贈品尺寸依據）';
+        }
+
+        if ( ! empty( $missing ) && $cart_subtotal >= NYB_THRESHOLD_AMOUNT * 0.8 ) {
+            $results['activity_4'] = ['status' => 'almost', 'missing' => $missing];
+        } elseif ( ! empty( $missing ) ) {
+            $results['activity_4'] = ['status' => 'not_qualified', 'missing' => $missing];
+        } else {
+            $results['activity_4'] = ['status' => 'not_qualified', 'missing' => ['商品已被其他活動使用']];
         }
     }
 
@@ -509,18 +383,18 @@ function nyb_analyze_cart_contents() {
         // 總數量（購買的商品數量）
         'spring_mattress_count' => 0,
         'lai_mattress_count' => 0,
+        'any_mattress_count' => 0,  // 所有床墊（嗜睡+賴床墊）
         'hypnotic_pillow_count' => 0,
         'hypnotic_pillow_count:other' => 0,
         'hypnotic_pillow_count:high' => 0,
         'hypnotic_pillow_vars' => [],
-        'bed_frame_count' => 0,
 
         // 可用數量（扣除已被活動使用的數量）
         'available' => [
             'spring_mattress' => 0,
             'lai_mattress' => 0,
+            'any_mattress' => 0,
             'hypnotic_pillow' => 0,
-            'bed_frame' => 0,
         ],
 
         // 使用追蹤（記錄哪個商品被哪個活動使用）
@@ -541,12 +415,16 @@ function nyb_analyze_cart_contents() {
         if ( isset( NYB_SPRING_MATTRESS_VARS_MAP[ $variation_id ] ) ) {
             $stats['spring_mattress_count'] += $quantity;
             $stats['available']['spring_mattress'] += $quantity;
+            $stats['any_mattress_count'] += $quantity;
+            $stats['available']['any_mattress'] += $quantity;
         }
 
         // 賴床墊
         if ( isset( NYB_LAI_MATTRESS_VARS_MAP[ $variation_id ] ) ) {
             $stats['lai_mattress_count'] += $quantity;
             $stats['available']['lai_mattress'] += $quantity;
+            $stats['any_mattress_count'] += $quantity;
+            $stats['available']['any_mattress'] += $quantity;
         }
 
         // 催眠枕
@@ -564,12 +442,6 @@ function nyb_analyze_cart_contents() {
                 $stats['hypnotic_pillow_vars'][ $variation_id ] = 0;
             }
             $stats['hypnotic_pillow_vars'][ $variation_id ] += $quantity;
-        }
-
-        // 床架
-        if ( isset( NYB_BED_FRAME_IDS_MAP[ $variation_id ] ) || $product_id == NYB_BED_FRAME_PARENT ) {
-            $stats['bed_frame_count'] += $quantity;
-            $stats['available']['bed_frame'] += $quantity;
         }
     }
 
@@ -619,69 +491,43 @@ function nyb_get_related_activities( $product_id, $variation_id = 0 ) {
     $all_status = nyb_calculate_activity_status();
     $related = [];
 
-		nyb_log( 'nyb_get_related_activities_status' . print_r( $all_status, true ) . count( $all_status ), $all_status );
-		nyb_log( 'nyb_get_related_activities' . $product_id . ' ' . $variation_id, $all_status );
+    nyb_log( 'nyb_get_related_activities_status' . print_r( $all_status, true ) . count( $all_status ), $all_status );
+    nyb_log( 'nyb_get_related_activities' . $product_id . ' ' . $variation_id, $all_status );
 
     $check_id = $variation_id != 0 ? $variation_id : $product_id;
 
     // ⚡ 使用 Hash Map 判斷商品屬於哪些活動
-		// 賴床墊相關
-		if ( isset( NYB_LAI_MATTRESS_VARS_MAP[ $check_id ] ) || isset( NYB_LAI_MATTRESS_PARENT_IDS_MAP[ $product_id ] ) ) {
-				if ( isset( $all_status['activity_2'] ) ) {
-						$related[] = ['key' => 'activity_2', 'data' => $all_status['activity_2'], 'priority' => 6];
-				}
-				if ( isset( $all_status['activity_5'] ) ) {
-						$related[] = ['key' => 'activity_5', 'data' => $all_status['activity_5'], 'priority' => 3];
-				}
-		}
 
-		// 嗜睡床墊相關
-		if ( isset( NYB_SPRING_MATTRESS_VARS_MAP[ $check_id ] ) || isset( NYB_SPRING_MATTRESS_PARENT_IDS_MAP[ $product_id ] ) ) {
-			nyb_log( 'nyb_get_related_activities Spring Mattress', $all_status['activity_1'] );
-				if ( isset( $all_status['activity_1'] ) ) {
-					nyb_log( 'nyb_get_related_activities Spring Mattress activity_1', $all_status['activity_1'] );
-						$related[] = ['key' => 'activity_1', 'data' => $all_status['activity_1'], 'priority' => 7];
-				}
-				if ( isset( $all_status['activity_5'] ) ) {
-					nyb_log( 'nyb_get_related_activities Spring Mattress activity_5', $all_status['activity_5'] );
-						$related[] = ['key' => 'activity_5', 'data' => $all_status['activity_5'], 'priority' => 3];
-				}
-				if ( isset( $all_status['activity_6'] ) ) {
-					nyb_log( 'nyb_get_related_activities Spring Mattress activity_6', $all_status['activity_6'] );
-						$related[] = ['key' => 'activity_6', 'data' => $all_status['activity_6'], 'priority' => 2];
-				}
-				if ( isset( $all_status['activity_7'] ) ) {
-					nyb_log( 'nyb_get_related_activities Spring Mattress activity_7', $all_status['activity_7'] );
-						$related[] = ['key' => 'activity_7', 'data' => $all_status['activity_7'], 'priority' => 1];
-				}
-		}
+    // 賴床墊相關
+    if ( isset( NYB_LAI_MATTRESS_VARS_MAP[ $check_id ] ) || isset( NYB_LAI_MATTRESS_PARENT_IDS_MAP[ $product_id ] ) ) {
+        if ( isset( $all_status['activity_2'] ) ) {
+            $related[] = ['key' => 'activity_2', 'data' => $all_status['activity_2'], 'priority' => 3];
+        }
+        if ( isset( $all_status['activity_3'] ) ) {
+            $related[] = ['key' => 'activity_3', 'data' => $all_status['activity_3'], 'priority' => 2];
+        }
+        if ( isset( $all_status['activity_4'] ) ) {
+            $related[] = ['key' => 'activity_4', 'data' => $all_status['activity_4'], 'priority' => 1];
+        }
+    }
+
+    // 嗜睡床墊相關
+    if ( isset( NYB_SPRING_MATTRESS_VARS_MAP[ $check_id ] ) || isset( NYB_SPRING_MATTRESS_PARENT_IDS_MAP[ $product_id ] ) ) {
+        if ( isset( $all_status['activity_2'] ) ) {
+            $related[] = ['key' => 'activity_2', 'data' => $all_status['activity_2'], 'priority' => 3];
+        }
+        if ( isset( $all_status['activity_4'] ) ) {
+            $related[] = ['key' => 'activity_4', 'data' => $all_status['activity_4'], 'priority' => 1];
+        }
+    }
 
     // 催眠枕相關
     if ( isset( NYB_HYPNOTIC_PILLOW_VARS_MAP[ $check_id ] ) || $product_id == NYB_HYPNOTIC_PILLOW_PARENT ) {
         if ( isset( $all_status['activity_1'] ) ) {
-            $related[] = ['key' => 'activity_1', 'data' => $all_status['activity_1'], 'priority' => 7];
+            $related[] = ['key' => 'activity_1', 'data' => $all_status['activity_1'], 'priority' => 4];
         }
-        if ( isset( $all_status['activity_3'] ) ) {
-            $related[] = ['key' => 'activity_3', 'data' => $all_status['activity_3'], 'priority' => 5];
-        }
-        if ( isset( $all_status['activity_4'] ) ) {
-            $related[] = ['key' => 'activity_4', 'data' => $all_status['activity_4'], 'priority' => 4];
-        }
-        if ( isset( $all_status['activity_5'] ) ) {
-            $related[] = ['key' => 'activity_5', 'data' => $all_status['activity_5'], 'priority' => 3];
-        }
-        if ( isset( $all_status['activity_7'] ) ) {
-            $related[] = ['key' => 'activity_7', 'data' => $all_status['activity_7'], 'priority' => 1];
-        }
-    }
-
-    // 床架相關
-    if ( isset( NYB_BED_FRAME_IDS_MAP[ $check_id ] ) || $product_id == NYB_BED_FRAME_PARENT) {
-        if ( isset( $all_status['activity_6'] ) ) {
-            $related[] = ['key' => 'activity_6', 'data' => $all_status['activity_6'], 'priority' => 2];
-        }
-        if ( isset( $all_status['activity_7'] ) ) {
-            $related[] = ['key' => 'activity_7', 'data' => $all_status['activity_7'], 'priority' => 1];
+        if ( isset( $all_status['activity_2'] ) ) {
+            $related[] = ['key' => 'activity_2', 'data' => $all_status['activity_2'], 'priority' => 3];
         }
     }
 
@@ -704,13 +550,10 @@ function nyb_get_activity_description( $activity_key ) {
 
     if ( $descriptions === null ) {
         $descriptions = [
-            'activity_1' => '嗜睡床墊任一張+催眠枕任一顆，再送兩用茸茸被一件',
-            'activity_2' => '買賴床墊，送抱枕+眼罩',
-            'activity_3' => '枕頭任選2顆 $8888再加碼贈天絲枕套2個',
-            'activity_4' => '（買一送一），買催眠枕送天絲枕套一件',
-            'activity_5' => '床墊+催眠枕*2+賴床墊，贈天絲四件組床包',
-            'activity_6' => '嗜睡床墊+床架，贈側睡枕1顆',
-            'activity_7' => '床墊+床架+枕頭*2，贈天絲四件組床包+兩用茸茸被'
+            'activity_1' => '購買催眠枕送天絲枕套',
+            'activity_2' => '購買床墊+催眠枕送兩用茸茸被',
+            'activity_3' => '購買賴床墊送抱枕+眼罩',
+            'activity_4' => '滿50000加碼贈天絲床包四件組'
         ];
     }
 
@@ -786,44 +629,63 @@ function nyb_get_activity_notice( $activity_key, $status, $missing = [] ) {
         'activity_1' => [
             'qualified' => [
                 'title' => '🎁 已符合優惠',
-                'message' => '已購買' . $spring_mattress_link . '和' . $hypnotic_pillow_link . '，將獲贈' . $fleece_blanket_link,
+                'message' => '已購買' . $hypnotic_pillow_link . '，將獲贈配對' . $pillowcase_link . '（買一送一）',
+                'type' => 'success'
+            ],
+            'almost' => [
+                'title' => '',
+                'message' => function() use ( $missing, $hypnotic_pillow_link, $pillowcase_link ) {
+                    if ( empty( $missing ) || in_array( '催眠枕', $missing ) ) {
+                        return '購買' . $hypnotic_pillow_link . '，即可獲得配對' . $pillowcase_link . '（買一送一）';
+                    }
+                    return '購買' . $hypnotic_pillow_link . '，即可獲得配對' . $pillowcase_link . '（買一送一）';
+                },
+                'type' => 'info'
+            ],
+            'not_qualified' => [
+                'title' => '',
+                'message' => function() use ( $missing, $hypnotic_pillow_link, $pillowcase_link ) {
+                    return '購買' . $hypnotic_pillow_link . '，即可獲得配對' . $pillowcase_link . '（買一送一）';
+                },
+                'type' => 'info'
+            ]
+        ],
+        'activity_2' => [
+            'qualified' => [
+                'title' => '🎁 已符合優惠',
+                'message' => '已購買床墊和' . $hypnotic_pillow_link . '，將獲贈' . $fleece_blanket_link,
                 'type' => 'success'
             ],
             'almost' => [
                 'title' => '',
                 'message' => function() use ( $missing, $mattress_link, $hypnotic_pillow_link, $fleece_blanket_link ) {
                     $links = [];
-                    $has_spring_mattress = true;
-                    $has_pillow = true;
-
                     foreach ( $missing as $item ) {
-                        if ( $item === '嗜睡床墊' ) {
+                        if ( $item === '床墊' ) {
                             $links[] = $mattress_link;
-                            $has_spring_mattress = false;
                         } elseif ( $item === '催眠枕' ) {
                             $links[] = $hypnotic_pillow_link;
-                            $has_pillow = false;
                         }
                     }
 
                     if ( empty( $links ) ) {
-                        return '購買' . $mattress_link . '和' . $hypnotic_pillow_link . '，即可獲得' . $fleece_blanket_link;
+                        return '購買床墊和' . $hypnotic_pillow_link . '，即可獲得' . $fleece_blanket_link;
                     }
 
-                    $prefix = ( $has_spring_mattress || $has_pillow ) ? '再購買' : '購買';
+                    $prefix = count( $missing ) < 2 ? '再購買' : '購買';
                     return $prefix . implode( '和', $links ) . '，即可獲得' . $fleece_blanket_link;
                 },
                 'type' => 'info'
             ],
-						'not_qualified' => [
-							'title' => '',
-							'message' => function() use ( $missing, $mattress_link, $hypnotic_pillow_link, $fleece_blanket_link ) {
-								return '購買' . $mattress_link . '和' . $hypnotic_pillow_link . '，即可獲得' . $fleece_blanket_link;
-							},
-							'type' => 'info'
-						]
+            'not_qualified' => [
+                'title' => '',
+                'message' => function() use ( $missing, $mattress_link, $hypnotic_pillow_link, $fleece_blanket_link ) {
+                    return '購買床墊和' . $hypnotic_pillow_link . '，即可獲得' . $fleece_blanket_link;
+                },
+                'type' => 'info'
+            ]
         ],
-        'activity_2' => [
+        'activity_3' => [
             'qualified' => [
                 'title' => '🎁 已符合優惠',
                 'message' => '已購買' . $lai_mattress_link . '，將獲贈' . $hug_pillow_link . '和' . $eye_mask_link,
@@ -839,172 +701,47 @@ function nyb_get_activity_notice( $activity_key, $status, $missing = [] ) {
                 },
                 'type' => 'info'
             ],
-						'not_qualified' => [
-							'title' => '',
-							'message' => function() use ( $missing, $lai_mattress_link, $hug_pillow_link, $eye_mask_link ) {
-								return '購買' . $lai_mattress_link . '，即可獲得' . $hug_pillow_link . '和' . $eye_mask_link;
-							},
-							'type' => 'info'
-						]
-        ],
-        'activity_3' => [
-            'qualified' => [
-                'title' => '🎁 已符合優惠',
-                'message' => '已購買2個' . $hypnotic_pillow_link . '，享特價<strong>$8,888</strong>，再送同尺寸' . $pillowcase_link . 'x2',
-                'type' => 'success'
-            ],
-            'almost' => [
+            'not_qualified' => [
                 'title' => '',
-                'message' => function() use ( $missing, $hypnotic_pillow_link ) {
-                    // 獲取當前購物車統計
-                    $stats = nyb_analyze_cart_contents();
-                    $pillow_count = $stats['hypnotic_pillow_count'] ?? 0;
-
-                    if ( $pillow_count == 1 ) {
-                        return '再購買1個' . $hypnotic_pillow_link . '，即享特價<strong>$8,888</strong>，再送同尺寸' . $pillowcase_link . 'x2';
-                    }
-
-                    return '購買任意2個' . $hypnotic_pillow_link . '，即享特價<strong>$8,888</strong>，再送同尺寸' . $pillowcase_link . 'x2';
+                'message' => function() use ( $missing, $lai_mattress_link, $hug_pillow_link, $eye_mask_link ) {
+                    return '購買' . $lai_mattress_link . '，即可獲得' . $hug_pillow_link . '和' . $eye_mask_link;
                 },
                 'type' => 'info'
-            ],
-						'not_qualified' => [
-							'title' => '',
-							'message' => function() use ( $missing, $hypnotic_pillow_link, $pillowcase_link ) {
-								return '購買' . $hypnotic_pillow_link . '，即可獲得同尺寸' . $pillowcase_link . 'x2';
-							},
-							'type' => 'info'
-						]
+            ]
         ],
         'activity_4' => [
             'qualified' => [
                 'title' => '🎁 已符合優惠',
-                'message' => '已購買' . $hypnotic_pillow_link . '，將獲贈配對' . $pillowcase_link . '（買一送一）',
+                'message' => '已達消費滿額，將獲贈' . $bedding_set_link,
                 'type' => 'success'
             ],
             'almost' => [
                 'title' => '',
-                'message' => function() use ( $missing, $hypnotic_pillow_link, $pillowcase_link ) {
-                    if ( empty( $missing ) || in_array( '催眠枕', $missing ) ) {
-                        return '購買' . $hypnotic_pillow_link . '，即可獲得配對' . $pillowcase_link . '（買一送一）';
-                    }
-                    return '購買' . $hypnotic_pillow_link . '，即可獲得配對' . $pillowcase_link . '（買一送一）';
-                },
-                'type' => 'info'
-            ],
-						'not_qualified' => [
-							'title' => '',
-							'message' => function() use ( $missing, $hypnotic_pillow_link, $pillowcase_link ) {
-								return '購買' . $hypnotic_pillow_link . '，即可獲得配對' . $pillowcase_link . '（買一送一）';
-							},
-							'type' => 'info'
-						]
-        ],
-        'activity_5' => [
-            'qualified' => [
-                'title' => '🎁 已符合優惠',
-                'message' => '已購買' . $spring_mattress_link . '、' . $hypnotic_pillow_link . '×2和' . $lai_mattress_link . '，將獲贈' . $bedding_set_link,
-                'type' => 'success'
-            ],
-            'almost' => [
-                'title' => '',
-                'message' => function() use ( $missing, $spring_mattress_link, $hypnotic_pillow_link, $lai_mattress_link, $bedding_set_link ) {
-                    $links = [];
+                'message' => function() use ( $missing, $bedding_set_link ) {
+                    $message_parts = [];
                     foreach ( $missing as $item ) {
-                        if ( strpos( $item, '嗜睡床墊' ) !== false ) {
-                            $links[] = $spring_mattress_link;
-                        } elseif ( strpos( $item, '賴床墊' ) !== false ) {
-                            $links[] = $lai_mattress_link;
-                        } elseif ( strpos( $item, '催眠枕' ) !== false ) {
-                            $links[] = $hypnotic_pillow_link . '<small>（' . $item . '）</small>';
-                        }
-                    }
-                    $prefix = ! empty( $links ) && count( $missing ) < 3 ? '再購買' : '購買';
-                    return $prefix . implode( '、', $links ) . '，即可獲得' . $bedding_set_link;
-                },
-                'type' => 'info'
-            ],
-						'not_qualified' => [
-							'title' => '',
-							'message' => function() use ( $missing, $spring_mattress_link, $hypnotic_pillow_link, $lai_mattress_link, $bedding_set_link ) {
-								return '購買' . $spring_mattress_link . '、' . $hypnotic_pillow_link . '<small>（2個）</small>和' . $lai_mattress_link . '，即可獲得' . $bedding_set_link;
-							},
-							'type' => 'info'
-						]
-        ],
-        'activity_6' => [
-            'qualified' => [
-                'title' => '🎁 已符合優惠',
-                'message' => '已購買' . $mattress_link . '和' . $bed_frame_link . '，將獲贈' . $side_pillow_link,
-                'type' => 'success'
-            ],
-            'almost' => [
-                'title' => '',
-                'message' => function() use ( $missing, $mattress_link, $bed_frame_link, $side_pillow_link ) {
-                    $links = [];
-                    $has_something = false;
-
-                    foreach ( $missing as $item ) {
-                        if ( $item === '嗜睡床墊' ) {
-                            $links[] = $mattress_link;
-                        } elseif ( $item === '床架' ) {
-                            $links[] = $bed_frame_link;
+                        if ( strpos( $item, '還差' ) !== false ) {
+                            $message_parts[] = $item;
+                        } elseif ( strpos( $item, '床墊' ) !== false ) {
+                            $message_parts[] = $item;
                         }
                     }
 
-                    if ( empty( $links ) ) {
-                        return '購買' . $mattress_link . '和' . $bed_frame_link . '，即可獲得' . $side_pillow_link;
+                    if ( ! empty( $message_parts ) ) {
+                        return implode( '、', $message_parts ) . '，即可獲贈' . $bedding_set_link;
                     }
 
-                    $prefix = count( $missing ) < 2 ? '再購買' : '購買';
-                    return $prefix . implode( '和', $links ) . '，即可獲得' . $side_pillow_link;
+                    return '消費滿' . wc_price( NYB_THRESHOLD_AMOUNT ) . '（含床墊），即可獲贈' . $bedding_set_link;
                 },
                 'type' => 'info'
-							],
-							'not_qualified' => [
-								'title' => '',
-								'message' => function() use ( $missing, $mattress_link, $bed_frame_link, $side_pillow_link ) {
-									return '購買' . $mattress_link . '和' . $bed_frame_link . '，即可獲得' . $side_pillow_link;
-								},
-								'type' => 'info'
-							]
-        ],
-        'activity_7' => [
-            'qualified' => [
-                'title' => '🎁 已符合優惠',
-                'message' => '已購買' . $mattress_link . '、' . $bed_frame_link . '和' . $hypnotic_pillow_link . '×2，將獲贈' . $bedding_set_link . '和' . $fleece_blanket_link,
-                'type' => 'success'
             ],
-            'almost' => [
+            'not_qualified' => [
                 'title' => '',
-                'message' => function() use ( $missing, $mattress_link, $bed_frame_link, $hypnotic_pillow_link, $bedding_set_link, $fleece_blanket_link ) {
-                    $links = [];
-                    foreach ( $missing as $item ) {
-                        if ( $item === '嗜睡床墊' ) {
-                            $links[] = $mattress_link;
-                        } elseif ( $item === '床架' ) {
-                            $links[] = $bed_frame_link;
-                        } elseif ( strpos( $item, '催眠枕' ) !== false ) {
-                            $links[] = $hypnotic_pillow_link . '<small>（' . $item . '）</small>';
-                        }
-                    }
-
-                    if ( empty( $links ) ) {
-                        return '購買' . $mattress_link . '、' . $bed_frame_link . '和' . $hypnotic_pillow_link . '<small>（2個）</small>，即可獲得' . $bedding_set_link . '和' . $fleece_blanket_link;
-                    }
-
-                    $prefix = count( $missing ) < 3 ? '再購買' : '購買';
-                    return $prefix . implode( '、', $links ) . '，即可獲得' . $bedding_set_link . '和' . $fleece_blanket_link;
+                'message' => function() use ( $bedding_set_link ) {
+                    return '消費滿' . wc_price( NYB_THRESHOLD_AMOUNT ) . '（含床墊），即可獲贈' . $bedding_set_link;
                 },
                 'type' => 'info'
-						],
-						'not_qualified' => [
-							'title' => '',
-							'message' => function() use ( $missing, $mattress_link, $bed_frame_link, $hypnotic_pillow_link, $bedding_set_link, $fleece_blanket_link ) {
-								return '購買' . $mattress_link . '、' . $bed_frame_link . '和' . $hypnotic_pillow_link . '<small>（2個）</small>，即可獲得' . $bedding_set_link . '和' . $fleece_blanket_link;
-							},
-							'type' => 'info'
-						]
+            ]
         ]
     ];
 
@@ -1229,64 +966,34 @@ function nyb_get_actually_applied_activities() {
     $stats = nyb_analyze_cart_contents();
     $applied_activities = [];
 
-    // 【優先級1】活動7: 終極組合
-    if ( $stats['available']['spring_mattress'] >= 1 &&
-         $stats['available']['bed_frame'] >= 1 &&
-         $stats['available']['hypnotic_pillow'] >= 2 ) {
-        if ( nyb_consume_item( $stats, 'spring_mattress', 1, 'bundle7' ) &&
-             nyb_consume_item( $stats, 'bed_frame', 1, 'bundle7' ) &&
-             nyb_consume_item( $stats, 'hypnotic_pillow', 2, 'bundle7' ) ) {
-            $applied_activities[] = 'activity_7';
-        }
-    }
-
-    // 【優先級2】活動6: 床墊+床架送側睡枕
-    if ( $stats['available']['spring_mattress'] >= 1 &&
-         $stats['available']['bed_frame'] >= 1 ) {
-        if ( nyb_consume_item( $stats, 'spring_mattress', 1, 'bundle6' ) &&
-             nyb_consume_item( $stats, 'bed_frame', 1, 'bundle6' ) ) {
-            $applied_activities[] = 'activity_6';
-        }
-    }
-
-    // 【優先級3】活動5: 大禮包送天絲四件組
-    if ( $stats['available']['spring_mattress'] >= 1 &&
-         $stats['available']['hypnotic_pillow'] >= 2 &&
-         $stats['available']['lai_mattress'] >= 1 ) {
-        if ( nyb_consume_item( $stats, 'spring_mattress', 1, 'bundle5' ) &&
-             nyb_consume_item( $stats, 'hypnotic_pillow', 2, 'bundle5' ) &&
-             nyb_consume_item( $stats, 'lai_mattress', 1, 'bundle5' ) ) {
-            $applied_activities[] = 'activity_5';
-        }
-    }
-
-    // 【優先級4】活動3: 枕頭組合特價$8888
-    if ( $stats['available']['hypnotic_pillow'] >= 2 ) {
-        if ( nyb_consume_item( $stats, 'hypnotic_pillow', 2, 'bundle3' ) ) {
-            $applied_activities[] = 'activity_3';
-        }
-    }
-
-    // 【優先級5】活動4: 買枕頭送枕套
-    if ( $stats['available']['hypnotic_pillow'] >= 1 ) {
-        $pillow_count = $stats['available']['hypnotic_pillow'];
-        if ( nyb_consume_item( $stats, 'hypnotic_pillow', $pillow_count, 'bundle4' ) ) {
+    // 【優先級1】活動4: 滿額贈天絲床包四件組
+    $cart_subtotal = $cart->get_subtotal();
+    if ( $cart_subtotal >= NYB_THRESHOLD_AMOUNT && $stats['available']['any_mattress'] >= 1 ) {
+        if ( nyb_consume_item( $stats, 'any_mattress', 1, 'bundle4' ) ) {
             $applied_activities[] = 'activity_4';
         }
     }
 
-    // 【優先級6】活動2: 賴床墊送抱枕+眼罩
+    // 【優先級2】活動3: 賴床墊送抱枕+眼罩
     if ( $stats['available']['lai_mattress'] >= 1 ) {
-        if ( nyb_consume_item( $stats, 'lai_mattress', 1, 'bundle2' ) ) {
+        if ( nyb_consume_item( $stats, 'lai_mattress', 1, 'bundle3' ) ) {
+            $applied_activities[] = 'activity_3';
+        }
+    }
+
+    // 【優先級3】活動2: 床墊+催眠枕送茸茸被
+    if ( $stats['available']['any_mattress'] >= 1 &&
+         $stats['available']['hypnotic_pillow'] >= 1 ) {
+        if ( nyb_consume_item( $stats, 'any_mattress', 1, 'bundle2' ) &&
+             nyb_consume_item( $stats, 'hypnotic_pillow', 1, 'bundle2' ) ) {
             $applied_activities[] = 'activity_2';
         }
     }
 
-    // 【優先級7】活動1: 嗜睡床墊+催眠枕送茸茸被
-    if ( $stats['available']['spring_mattress'] >= 1 &&
-         $stats['available']['hypnotic_pillow'] >= 1 ) {
-        if ( nyb_consume_item( $stats, 'spring_mattress', 1, 'bundle1' ) &&
-             nyb_consume_item( $stats, 'hypnotic_pillow', 1, 'bundle1' ) ) {
+    // 【優先級4】活動1: 買枕頭送枕套
+    if ( $stats['available']['hypnotic_pillow'] >= 1 ) {
+        $pillow_count = $stats['available']['hypnotic_pillow'];
+        if ( nyb_consume_item( $stats, 'hypnotic_pillow', $pillow_count, 'bundle1' ) ) {
             $applied_activities[] = 'activity_1';
         }
     }
@@ -1420,13 +1127,10 @@ function nyb_display_qualified_activities_in_checkout() {
  */
 function nyb_get_activity_name( $activity_key ) {
     $names = [
-				'activity_1' => '嗜睡床墊任一張+催眠枕任一顆，再送兩用茸茸被一件',
-				'activity_2' => '買賴床墊，送抱枕+眼罩',
-				'activity_3' => '枕頭任選2顆 $8888再加碼贈天絲枕套2個',
-				'activity_4' => '（買一送一），買催眠枕送天絲枕套一件',
-				'activity_5' => '床墊+催眠枕*2+賴床墊，贈天絲四件組床包',
-				'activity_6' => '嗜睡床墊+床架，贈側睡枕1顆',
-				'activity_7' => '床墊+床架+枕頭*2，贈天絲四件組床包+兩用茸茸被'
+        'activity_1' => '購買催眠枕送天絲枕套',
+        'activity_2' => '購買床墊+催眠枕送兩用茸茸被',
+        'activity_3' => '購買賴床墊送抱枕+眼罩',
+        'activity_4' => '滿50000加碼贈天絲床包四件組'
     ];
 
     return isset( $names[ $activity_key ] ) ? $names[ $activity_key ] : '新年優惠活動';
@@ -1458,105 +1162,59 @@ function nyb_activity_detection_engine( $cart ) {
 
     nyb_log( "========== 新年活動檢測開始 ==========", $context );
 
-    // --- 步驟 0: 清除之前的活動折扣 fees ---
-    $fees = $cart->get_fees();
-    foreach ( $fees as $fee_key => $fee ) {
-        if ( $fee->name === '枕頭組合特價優惠' ) {
-            unset( $cart->fees_api()->fees[ $fee_key ] );
-            nyb_log( "[新年活動] 清除舊的活動3折扣 fee", $context );
-        }
-    }
-
     // --- 步驟 1: 分析購物車內容 ---
     $stats = nyb_analyze_cart_contents();
 
     nyb_log( sprintf(
-        "[新年活動] 購物車統計 | 嗜睡床墊:%d(可用:%d), 賴床墊:%d(可用:%d), 催眠枕:%d(可用:%d), 床架:%d(可用:%d)",
-        $stats['spring_mattress_count'],
-        $stats['available']['spring_mattress'],
+        "[新年活動] 購物車統計 | 所有床墊:%d(可用:%d), 賴床墊:%d(可用:%d), 催眠枕:%d(可用:%d)",
+        $stats['any_mattress_count'],
+        $stats['available']['any_mattress'],
         $stats['lai_mattress_count'],
         $stats['available']['lai_mattress'],
         $stats['hypnotic_pillow_count'],
-        $stats['available']['hypnotic_pillow'],
-        $stats['bed_frame_count'],
-        $stats['available']['bed_frame']
+        $stats['available']['hypnotic_pillow']
     ), $context );
 
     // --- 步驟 2: 按優先級檢查活動並應用（數量扣減機制）---
     $applied_activities = [];
 
-    // 【優先級1】活動7: 終極組合（嗜睡床墊+床架+催眠枕×2）
-    if ( $stats['available']['spring_mattress'] >= 1 &&
-         $stats['available']['bed_frame'] >= 1 &&
-         $stats['available']['hypnotic_pillow'] >= 2 ) {
-        if ( nyb_consume_item( $stats, 'spring_mattress', 1, 'bundle7' ) &&
-             nyb_consume_item( $stats, 'bed_frame', 1, 'bundle7' ) &&
-             nyb_consume_item( $stats, 'hypnotic_pillow', 2, 'bundle7' ) ) {
-            nyb_apply_activity_7( $cart, $stats, $context );
-            $applied_activities[] = 'bundle7';
-            nyb_log( "[活動7] 套用成功 | 剩餘: 嗜睡床墊:{$stats['available']['spring_mattress']}, 床架:{$stats['available']['bed_frame']}, 催眠枕:{$stats['available']['hypnotic_pillow']}", $context );
-        }
-    }
-
-    // 【優先級2】活動6: 床墊+床架送側睡枕
-    if ( $stats['available']['spring_mattress'] >= 1 &&
-         $stats['available']['bed_frame'] >= 1 ) {
-        if ( nyb_consume_item( $stats, 'spring_mattress', 1, 'bundle6' ) &&
-             nyb_consume_item( $stats, 'bed_frame', 1, 'bundle6' ) ) {
-            nyb_apply_activity_6( $cart, $stats, $context );
-            $applied_activities[] = 'bundle6';
-            nyb_log( "[活動6] 套用成功 | 剩餘: 嗜睡床墊:{$stats['available']['spring_mattress']}, 床架:{$stats['available']['bed_frame']}", $context );
-        }
-    }
-
-    // 【優先級3】活動5: 大禮包送天絲四件組（嗜睡床墊+催眠枕×2+賴床墊）
-    if ( $stats['available']['spring_mattress'] >= 1 &&
-         $stats['available']['hypnotic_pillow'] >= 2 &&
-         $stats['available']['lai_mattress'] >= 1 ) {
-        if ( nyb_consume_item( $stats, 'spring_mattress', 1, 'bundle5' ) &&
-             nyb_consume_item( $stats, 'hypnotic_pillow', 2, 'bundle5' ) &&
-             nyb_consume_item( $stats, 'lai_mattress', 1, 'bundle5' ) ) {
-            nyb_apply_activity_5( $cart, $stats, $context );
-            $applied_activities[] = 'bundle5';
-            nyb_log( "[活動5] 套用成功 | 剩餘: 嗜睡床墊:{$stats['available']['spring_mattress']}, 催眠枕:{$stats['available']['hypnotic_pillow']}, 賴床墊:{$stats['available']['lai_mattress']}", $context );
-        }
-    }
-
-    // 【優先級4】活動3: 枕頭組合特價$8888（任意2個枕頭）
-    if ( $stats['available']['hypnotic_pillow'] >= 2 ) {
-        if ( nyb_consume_item( $stats, 'hypnotic_pillow', 2, 'bundle3' ) ) {
-            nyb_apply_activity_3( $cart, $stats, $context );
-            $applied_activities[] = 'bundle3';
-            nyb_log( "[活動3] 套用成功 | 剩餘: 催眠枕:{$stats['available']['hypnotic_pillow']}", $context );
-        }
-    }
-
-    // 【優先級5】活動4: 買枕頭送枕套（買一送一）
-    if ( $stats['available']['hypnotic_pillow'] >= 1 ) {
-        if ( nyb_consume_item( $stats, 'hypnotic_pillow', 1, 'bundle4' ) ) {
+    // 【優先級1】活動4: 滿額贈天絲床包四件組
+    $cart_subtotal = $cart->get_subtotal();
+    if ( $cart_subtotal >= NYB_THRESHOLD_AMOUNT && $stats['available']['any_mattress'] >= 1 ) {
+        if ( nyb_consume_item( $stats, 'any_mattress', 1, 'bundle4' ) ) {
             nyb_apply_activity_4( $cart, $stats, $context );
             $applied_activities[] = 'bundle4';
-            nyb_log( "[活動4] 套用成功 | 使用了 1 個催眠枕", $context );
+            nyb_log( "[活動4] 套用成功 | 剩餘床墊:{$stats['available']['any_mattress']}, 消費金額:" . $cart_subtotal, $context );
         }
     }
 
-    // 【優先級6】活動2: 賴床墊送抱枕+眼罩
+    // 【優先級2】活動3: 賴床墊送抱枕+眼罩
     if ( $stats['available']['lai_mattress'] >= 1 ) {
-        if ( nyb_consume_item( $stats, 'lai_mattress', 1, 'bundle2' ) ) {
+        if ( nyb_consume_item( $stats, 'lai_mattress', 1, 'bundle3' ) ) {
+            nyb_apply_activity_3( $cart, $stats, $context );
+            $applied_activities[] = 'bundle3';
+            nyb_log( "[活動3] 套用成功 | 剩餘: 賴床墊:{$stats['available']['lai_mattress']}", $context );
+        }
+    }
+
+    // 【優先級3】活動2: 床墊+催眠枕送茸茸被
+    if ( $stats['available']['any_mattress'] >= 1 &&
+         $stats['available']['hypnotic_pillow'] >= 1 ) {
+        if ( nyb_consume_item( $stats, 'any_mattress', 1, 'bundle2' ) &&
+             nyb_consume_item( $stats, 'hypnotic_pillow', 1, 'bundle2' ) ) {
             nyb_apply_activity_2( $cart, $stats, $context );
             $applied_activities[] = 'bundle2';
-            nyb_log( "[活動2] 套用成功 | 剩餘: 賴床墊:{$stats['available']['lai_mattress']}", $context );
+            nyb_log( "[活動2] 套用成功 | 剩餘: 床墊:{$stats['available']['any_mattress']}, 催眠枕:{$stats['available']['hypnotic_pillow']}", $context );
         }
     }
 
-    // 【優先級7】活動1: 嗜睡床墊+催眠枕送茸茸被
-    if ( $stats['available']['spring_mattress'] >= 1 &&
-         $stats['available']['hypnotic_pillow'] >= 1 ) {
-        if ( nyb_consume_item( $stats, 'spring_mattress', 1, 'bundle1' ) &&
-             nyb_consume_item( $stats, 'hypnotic_pillow', 1, 'bundle1' ) ) {
+    // 【優先級4】活動1: 買枕頭送枕套
+    if ( $stats['available']['hypnotic_pillow'] >= 1 ) {
+        $pillow_count = $stats['available']['hypnotic_pillow'];
+        if ( nyb_consume_item( $stats, 'hypnotic_pillow', $pillow_count, 'bundle1' ) ) {
             nyb_apply_activity_1( $cart, $stats, $context );
             $applied_activities[] = 'bundle1';
-            nyb_log( "[活動1] 套用成功 | 剩餘: 嗜睡床墊:{$stats['available']['spring_mattress']}, 催眠枕:{$stats['available']['hypnotic_pillow']}", $context );
+            nyb_log( "[活動1] 套用成功 | 使用了 {$pillow_count} 個催眠枕", $context );
         }
     }
 
@@ -1597,214 +1255,13 @@ function nyb_find_gift_product_in_cart( $product_id, $metadata_key = '_is_free_g
 
 /**
  * =======================================================
- * 模組 4：活動1 - 床墊+催眠枕送茸茸被
+ * 模組 4：活動1 - 買枕頭送枕套
  * =======================================================
  */
 function nyb_apply_activity_1( $cart, $stats, $context ) {
-    // 檢查是否已有此贈品
-    $gift_exists = false;
-
-    foreach ( $cart->get_cart() as $cart_item ) {
-        if ( isset( $cart_item['_nyb_auto_gift'] ) &&
-             $cart_item['_nyb_auto_gift'] === 'bundle1' ) {
-            $gift_exists = true;
-            break;
-        }
-    }
-
-    if ( ! $gift_exists ) {
-        $cart->add_to_cart( NYB_GIFT_FLEECE_BLANKET, 1, 0, array(), array( '_nyb_auto_gift' => 'bundle1' ) );
-        nyb_log( sprintf( "[活動1] 自動加入茸茸被 | ID: %s", NYB_GIFT_FLEECE_BLANKET ), $context );
-    }
-
-    // 將贈品價格設為 0
-    foreach ( $cart->get_cart() as $cart_item_key => $cart_item ) {
-        if ( isset( $cart_item['_nyb_auto_gift'] ) &&
-             $cart_item['_nyb_auto_gift'] === 'bundle1' ) {
-            $original_price = $cart_item['data']->get_regular_price();
-            $cart_item['data']->set_price( 0 );
-            $cart_item['data']->add_meta_data( '_is_free_gift', 'yes', true );
-            $cart_item['data']->add_meta_data( '_original_price', $original_price, true );
-            nyb_log( sprintf( "[活動1] 將贈品價格設為 0 | 原價: %s", $original_price ), $context );
-        }
-    }
-}
-
-/**
- * =======================================================
- * 模組 5：活動2 - 賴床墊送抱枕+眼罩
- * =======================================================
- */
-function nyb_apply_activity_2( $cart, $stats, $context ) {
-    $gifts_needed = [
-        NYB_GIFT_HUG_PILLOW => false,
-        NYB_GIFT_EYE_MASK => false
-    ];
-
-    // 檢查已有的贈品
-    foreach ( $cart->get_cart() as $cart_item ) {
-        if ( isset( $cart_item['_nyb_auto_gift'] ) &&
-             $cart_item['_nyb_auto_gift'] === 'bundle2' ) {
-            $product_id = $cart_item['product_id'];
-            if ( isset( $gifts_needed[ $product_id ] ) ) {
-                $gifts_needed[ $product_id ] = true;
-            }
-        }
-    }
-
-    // 加入缺少的贈品
-    foreach ( $gifts_needed as $gift_id => $exists ) {
-        if ( ! $exists ) {
-            $cart->add_to_cart( $gift_id, 1, 0, array(), array( '_nyb_auto_gift' => 'bundle2' ) );
-            nyb_log( sprintf( "[活動2] 自動加入贈品 | ID: %s", $gift_id ), $context );
-        }
-    }
-
-    // 將贈品價格設為 0
-    foreach ( $cart->get_cart() as $cart_item_key => $cart_item ) {
-        if ( isset( $cart_item['_nyb_auto_gift'] ) &&
-             $cart_item['_nyb_auto_gift'] === 'bundle2' ) {
-            $original_price = $cart_item['data']->get_regular_price();
-            $cart_item['data']->set_price( 0 );
-            $cart_item['data']->add_meta_data( '_is_free_gift', 'yes', true );
-            $cart_item['data']->add_meta_data( '_original_price', $original_price, true );
-            nyb_log( sprintf( "[活動2] 將贈品價格設為 0 | ID: %s, 原價: %s", $cart_item['product_id'], $original_price ), $context );
-        }
-    }
-}
-
-/**
- * =======================================================
- * 模組 6：活動3 - 枕頭組合特價$8888
- * ⚡ 新邏輯：取價格最高的兩個枕頭組成特價組合
- * =======================================================
- */
-function nyb_apply_activity_3( $cart, $stats, $context ) {
-    // 收集所有購買的枕頭（排除贈品）
+    // 收集購物車中所有購買的催眠枕（含被活動1使用的數量）
     $purchased_pillows = [];
-
-    foreach ( $cart->get_cart() as $cart_item ) {
-        $variation_id = $cart_item['variation_id'];
-
-        // 排除贈品
-        if ( isset( $cart_item['_nyb_auto_gift'] ) ) {
-            continue;
-        }
-
-        // 排除活動4的免費贈品
-        if ( $cart_item['data']->get_meta( '_is_free_gift' ) === 'yes' ) {
-            continue;
-        }
-
-        // 只處理催眠枕
-        if ( isset( NYB_HYPNOTIC_PILLOW_VARS_MAP[ $variation_id ] ) ) {
-            $price = $cart_item['data']->get_price();
-            $quantity = $cart_item['quantity'];
-
-            // 將每個枕頭單獨加入陣列（考慮數量）
-            for ( $i = 0; $i < $quantity; $i++ ) {
-                $purchased_pillows[] = [
-                    'variation_id' => $variation_id,
-                    'price' => $price,
-                    'name' => $cart_item['data']->get_name()
-                ];
-            }
-        }
-    }
-
-    // 如果少於2個枕頭，不套用活動
-    if ( count( $purchased_pillows ) < 2 ) {
-        // nyb_log( "[活動3] 枕頭數量不足2個，不套用活動", $context );
-        return;
-    }
-
-    // 按價格降序排序
-    usort( $purchased_pillows, function( $a, $b ) {
-        return $b['price'] - $a['price'];
-    });
-
-    // 取最高價的兩個枕頭
-    $top_two = array_slice( $purchased_pillows, 0, 2 );
-    $top_two_total = $top_two[0]['price'] + $top_two[1]['price'];
-
-			nyb_log( sprintf( "[活動3] 取最高價的兩個枕頭 | 原價: %s, 特價: %s", $top_two_total, NYB_COMBO_SPECIAL_PRICE ), $context );
-
-    // === 新增：贈送對應的天絲枕套 ===
-    // 收集需要贈送的枕套（對應最高價的兩個枕頭）
-    $pillowcases_to_add = [];
-
-    foreach ( $top_two as $pillow ) {
-        $pillow_var_id = $pillow['variation_id'];
-
-        // 檢查是否有對應的枕套
-        if ( isset( NYB_PILLOWCASE_MAP[ $pillow_var_id ] ) ) {
-            $pillowcase_id = NYB_PILLOWCASE_MAP[ $pillow_var_id ];
-
-            if ( ! isset( $pillowcases_to_add[ $pillowcase_id ] ) ) {
-                $pillowcases_to_add[ $pillowcase_id ] = 0;
-            }
-            $pillowcases_to_add[ $pillowcase_id ]++;
-        }
-    }
-
-    // 檢查是否已有活動3的枕套贈品，如果有就先移除
-    foreach ( $cart->get_cart() as $cart_item_key => $cart_item ) {
-        if ( isset( $cart_item['_nyb_auto_gift'] ) &&
-						$cart_item['_nyb_auto_gift'] === 'bundle3' &&
-						isset( $cart_item['_nyb_gift_type'] ) &&
-						$cart_item['_nyb_gift_type'] === 'pillowcase' ) {
-            $cart->remove_cart_item( $cart_item_key );
-        }
-    }
-
-    // 添加枕套贈品到購物車
-    foreach ( $pillowcases_to_add as $pillowcase_id => $quantity ) {
-        $cart->add_to_cart(
-            NYB_HYPNOTIC_PILLOW_PARENT,
-            $quantity,
-            $pillowcase_id,
-            array(),
-            array(
-                '_nyb_auto_gift' => 'bundle3',
-                '_nyb_gift_type' => 'pillowcase'
-            )
-        );
-        nyb_log( sprintf( "[活動3] 自動加入枕套贈品 | Variation ID: %s, 數量: %d", $pillowcase_id, $quantity ), $context );
-    }
-
-    // 將枕套贈品價格設為 0
-    foreach ( $cart->get_cart() as $cart_item_key => $cart_item ) {
-        if ( isset( $cart_item['_nyb_auto_gift'] ) &&
-						$cart_item['_nyb_auto_gift'] === 'bundle3' &&
-						isset( $cart_item['_nyb_gift_type'] ) &&
-						$cart_item['_nyb_gift_type'] === 'pillowcase' ) {
-            $original_price = $cart_item['data']->get_regular_price();
-            $cart_item['data']->set_price( 0 );
-            $cart_item['data']->add_meta_data( '_is_free_gift', 'yes', true );
-            $cart_item['data']->add_meta_data( '_original_price', $original_price, true );
-            nyb_log( sprintf( "[活動3] 將枕套贈品價格設為 0 | Variation ID: %s, 原價: %s", $cart_item['variation_id'], $original_price ), $context );
-        }
-    }
-
-    // 計算需要的折扣金額
-    $discount_needed = $top_two_total - NYB_COMBO_SPECIAL_PRICE;
-
-    if ( $discount_needed > 0 ) {
-        // 添加折扣 fee（已在活動檢測開始時清空舊的）
-        $cart->add_fee( '枕頭組合特價優惠', -$discount_needed );
-    }
-}
-
-/**
- * =======================================================
- * 模組 7：活動4 - 買枕頭送枕套（買一送一）
- * ⚡ 更新邏輯：只送枕套，不送枕頭
- * =======================================================
- */
-function nyb_apply_activity_4( $cart, $stats, $context ) {
-    // 收集購物車中所有購買的催眠枕（含被活動4使用的數量）
-    $purchased_pillows = [];
-    $pillow_count_for_activity4 = 0;
+    $pillow_count_for_activity1 = 0;
 
     foreach ( $cart->get_cart() as $cart_item_key => $cart_item ) {
         $variation_id = $cart_item['variation_id'];
@@ -1824,34 +1281,34 @@ function nyb_apply_activity_4( $cart, $stats, $context ) {
                 ];
             }
             $purchased_pillows[ $variation_id ]['quantity'] += $cart_item['quantity'];
-            $pillow_count_for_activity4 += $cart_item['quantity'];
+            $pillow_count_for_activity1 += $cart_item['quantity'];
         }
     }
 
     // 如果沒有購買任何催眠枕，清空 session 並移除贈品
     if ( empty( $purchased_pillows ) ) {
-        WC()->session->__unset( 'nyb_bundle4_pillow_gifts' );
+        WC()->session->__unset( 'nyb_bundle1_pillow_gifts' );
         foreach ( $cart->get_cart() as $cart_item_key => $cart_item ) {
-            if ( isset( $cart_item['_nyb_auto_gift'] ) && $cart_item['_nyb_auto_gift'] === 'bundle4' ) {
+            if ( isset( $cart_item['_nyb_auto_gift'] ) && $cart_item['_nyb_auto_gift'] === 'bundle1' ) {
                 $cart->remove_cart_item( $cart_item_key );
             }
         }
         return;
     }
 
-    // 計算被活動4使用的枕頭數量（從 stats 的 usage 中取得）
-    if ( isset( $stats['usage']['bundle4']['hypnotic_pillow'] ) ) {
-        $pillow_count_for_activity4 = $stats['usage']['bundle4']['hypnotic_pillow'];
+    // 計算被活動1使用的枕頭數量（從 stats 的 usage 中取得）
+    if ( isset( $stats['usage']['bundle1']['hypnotic_pillow'] ) ) {
+        $pillow_count_for_activity1 = $stats['usage']['bundle1']['hypnotic_pillow'];
     }
 
-    nyb_log( sprintf( "[活動4] 被活動4使用的枕頭數量: %d", $pillow_count_for_activity4 ), $context );
+    nyb_log( sprintf( "[活動1] 被活動1使用的枕頭數量: %d", $pillow_count_for_activity1 ), $context );
 
     // 為每個被使用的枕頭添加對應的枕套贈品
     $pillowcases_to_add = [];
 
     foreach ( $purchased_pillows as $var_id => $pillow_data ) {
         if ( isset( NYB_PILLOWCASE_MAP[ $var_id ] ) ) {
-            $quantity_to_gift = min( $pillow_data['quantity'], $pillow_count_for_activity4 );
+            $quantity_to_gift = min( $pillow_data['quantity'], $pillow_count_for_activity1 );
 
             if ( $quantity_to_gift > 0 ) {
                 $pillowcase_id = NYB_PILLOWCASE_MAP[ $var_id ];
@@ -1861,21 +1318,21 @@ function nyb_apply_activity_4( $cart, $stats, $context ) {
                 }
 
                 $pillowcases_to_add[ $pillowcase_id ] += $quantity_to_gift;
-                $pillow_count_for_activity4 -= $quantity_to_gift;
+                $pillow_count_for_activity1 -= $quantity_to_gift;
             }
         }
 
-        if ( $pillow_count_for_activity4 <= 0 ) {
+        if ( $pillow_count_for_activity1 <= 0 ) {
             break;
         }
     }
 
     // 儲存到 session
-    WC()->session->set( 'nyb_bundle4_pillow_gifts', $pillowcases_to_add );
+    WC()->session->set( 'nyb_bundle1_pillow_gifts', $pillowcases_to_add );
 
-    // 移除舊的活動4贈品
+    // 移除舊的活動1贈品
     foreach ( $cart->get_cart() as $cart_item_key => $cart_item ) {
-        if ( isset( $cart_item['_nyb_auto_gift'] ) && $cart_item['_nyb_auto_gift'] === 'bundle4' ) {
+        if ( isset( $cart_item['_nyb_auto_gift'] ) && $cart_item['_nyb_auto_gift'] === 'bundle1' ) {
             $cart->remove_cart_item( $cart_item_key );
         }
     }
@@ -1887,14 +1344,14 @@ function nyb_apply_activity_4( $cart, $stats, $context ) {
             $quantity,
             $pillowcase_id,
             array(),
-            array( '_nyb_auto_gift' => 'bundle4', '_nyb_gift_type' => 'pillowcase' )
+            array( '_nyb_auto_gift' => 'bundle1', '_nyb_gift_type' => 'pillowcase' )
         );
-        nyb_log( sprintf( "[活動4] 自動加入枕套贈品 | Variation ID: %s, 數量: %d", $pillowcase_id, $quantity ), $context );
+        nyb_log( sprintf( "[活動1] 自動加入枕套贈品 | Variation ID: %s, 數量: %d", $pillowcase_id, $quantity ), $context );
     }
 
     // 將贈品價格設為 0
     foreach ( $cart->get_cart() as $cart_item_key => $cart_item ) {
-        if ( isset( $cart_item['_nyb_auto_gift'] ) && $cart_item['_nyb_auto_gift'] === 'bundle4' ) {
+        if ( isset( $cart_item['_nyb_auto_gift'] ) && $cart_item['_nyb_auto_gift'] === 'bundle1' ) {
             $original_price = $cart_item['data']->get_regular_price();
             $cart_item['data']->set_price( 0 );
             $cart_item['data']->add_meta_data( '_is_free_gift', 'yes', true );
@@ -1905,214 +1362,92 @@ function nyb_apply_activity_4( $cart, $stats, $context ) {
 
 /**
  * =======================================================
- * 模組 7A：活動4 提示訊息
- * 自動為每個購買的枕頭送對應枕套，無需選擇介面
+ * 模組 5：活動2 - 床墊+催眠枕送茸茸被
  * =======================================================
  */
-
-/**
- * 在購物車頁面顯示活動4的提示訊息
- */
-// add_action( 'woocommerce_after_cart_table', 'nyb_display_activity4_notice', 5 );
-function nyb_display_activity4_notice() {
-    // 檢查是否符合活動4
-    $activity_status = nyb_calculate_activity_status();
-
-    if ( ! isset( $activity_status['activity_4'] ) || $activity_status['activity_4']['status'] !== 'qualified' ) {
-        return;
-    }
-
-    // 獲取贈送的枕套資訊
-    $pillow_gifts = WC()->session->get( 'nyb_bundle4_pillow_gifts' );
-
-    if ( empty( $pillow_gifts ) ) {
-        return;
-    }
-
-    ?>
-    <div class="nyb-activity4-notice">
-        <div class="nyb-notice-header">
-            <span class="nyb-notice-icon">🎁</span>
-            <h3>買枕頭送枕套活動</h3>
-        </div>
-        <div class="nyb-notice-content">
-            <p>您購買的每個催眠枕都將獲贈對應的天絲枕套！</p>
-            <ul class="nyb-gift-list">
-                <?php
-                foreach ( $pillow_gifts as $pillowcase_id => $quantity ) :
-                    $pillowcase = wc_get_product( $pillowcase_id );
-                    if ( $pillowcase ) :
-                        $pillowcase_name = $pillowcase->get_name();
-                ?>
-                    <li>✓ <?php echo esc_html( $pillowcase_name ); ?> × <?php echo $quantity; ?></li>
-                <?php
-                    endif;
-                endforeach;
-                ?>
-            </ul>
-        </div>
-    </div>
-
-    <style>
-        .nyb-activity4-notice {
-            margin: 20px 0;
-            padding: 20px;
-            background: linear-gradient(135deg, #fff9f0 0%, #ffe8cc 100%);
-            border: 2px solid #df565f;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(223, 86, 95, 0.08);
-        }
-
-        .nyb-notice-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 12px;
-        }
-
-        .nyb-notice-icon {
-            font-size: 28px;
-            line-height: 1;
-        }
-
-        .nyb-notice-header h3 {
-            margin: 0;
-            color: #df565f;
-            font-size: 18px;
-            font-weight: bold;
-        }
-
-        .nyb-notice-content p {
-            margin: 0 0 12px 0;
-            color: #666;
-            font-size: 14px;
-        }
-
-        .nyb-gift-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .nyb-gift-list li {
-            padding: 8px 12px;
-            background: white;
-            border-left: 3px solid #df565f;
-            margin-bottom: 8px;
-            border-radius: 4px;
-            color: #333;
-            font-weight: 500;
-        }
-
-        @media (max-width: 768px) {
-            .nyb-activity4-notice {
-                padding: 15px;
-            }
-
-            .nyb-notice-header h3 {
-                font-size: 16px;
-            }
-        }
-    </style>
-    <?php
-}
-
-/**
- * =======================================================
- * 模組 8：活動5 - 大禮包送天絲四件組
- * ⚡ 性能優化：使用 Hash Map + 虛擬商品
- * =======================================================
- */
-function nyb_apply_activity_5( $cart, $stats, $context ) {
-    // 找出嗜睡床墊的尺寸（用於確定床包價值）
-    $mattress_var_id = null;
-    foreach ( $cart->get_cart() as $cart_item ) {
-        $variation_id = $cart_item['variation_id'];
-
-        // 排除贈品
-        if ( isset( $cart_item['_nyb_auto_gift'] ) ) {
-            continue;
-        }
-
-        // ⚡ 使用 Hash Map
-        if ( isset( NYB_SPRING_MATTRESS_VARS_MAP[ $variation_id ] ) ) {
-            $mattress_var_id = $variation_id;
-            break;
-        }
-    }
-
-    if ( $mattress_var_id && isset( NYB_BEDDING_VALUE_MAP[ $mattress_var_id ] ) ) {
-        // 添加虛擬床包商品到購物車
-        $result = NYB_Virtual_Bedding_Product::add_to_cart( $cart, $mattress_var_id, 'bundle5' );
-
-        if ( $result ) {
-            nyb_log( sprintf( "[活動5] 已添加天絲四件組床包到購物車 | 床墊 Variation ID: %s, 床包價值: %s", $mattress_var_id, NYB_BEDDING_VALUE_MAP[ $mattress_var_id ] ), $context );
-        }
-    }
-}
-
-/**
- * =======================================================
- * 模組 9：活動6 - 床墊+床架送側睡枕
- * =======================================================
- */
-function nyb_apply_activity_6( $cart, $stats, $context ) {
+function nyb_apply_activity_2( $cart, $stats, $context ) {
     // 檢查是否已有此贈品
     $gift_exists = false;
 
     foreach ( $cart->get_cart() as $cart_item ) {
         if ( isset( $cart_item['_nyb_auto_gift'] ) &&
-             $cart_item['_nyb_auto_gift'] === 'bundle6' &&
-             $cart_item['variation_id'] == NYB_GIFT_SIDE_PILLOW_VAR ) {
+             $cart_item['_nyb_auto_gift'] === 'bundle2' ) {
             $gift_exists = true;
             break;
         }
     }
 
     if ( ! $gift_exists ) {
-        $cart->add_to_cart( NYB_HYPNOTIC_PILLOW_PARENT, 1, NYB_GIFT_SIDE_PILLOW_VAR, array(), array( '_nyb_auto_gift' => 'bundle6' ) );
-        nyb_log( sprintf( "[活動6] 自動加入側睡枕 | Variation ID: %s", NYB_GIFT_SIDE_PILLOW_VAR ), $context );
+        $cart->add_to_cart( NYB_GIFT_FLEECE_BLANKET, 1, 0, array(), array( '_nyb_auto_gift' => 'bundle2' ) );
+        nyb_log( sprintf( "[活動2] 自動加入茸茸被 | ID: %s", NYB_GIFT_FLEECE_BLANKET ), $context );
     }
 
     // 將贈品價格設為 0
     foreach ( $cart->get_cart() as $cart_item_key => $cart_item ) {
         if ( isset( $cart_item['_nyb_auto_gift'] ) &&
-             $cart_item['_nyb_auto_gift'] === 'bundle6' ) {
+             $cart_item['_nyb_auto_gift'] === 'bundle2' ) {
             $original_price = $cart_item['data']->get_regular_price();
             $cart_item['data']->set_price( 0 );
             $cart_item['data']->add_meta_data( '_is_free_gift', 'yes', true );
             $cart_item['data']->add_meta_data( '_original_price', $original_price, true );
-            nyb_log( sprintf( "[活動6] 將贈品價格設為 0 | 原價: %s", $original_price ), $context );
+            nyb_log( sprintf( "[活動2] 將贈品價格設為 0 | 原價: %s", $original_price ), $context );
         }
     }
 }
 
 /**
  * =======================================================
- * 模組 10：活動7 - 終極組合
- * ⚡ 性能優化：使用 Hash Map + 虛擬商品
+ * 模組 6：活動3 - 賴床墊送抱枕+眼罩
  * =======================================================
  */
-function nyb_apply_activity_7( $cart, $stats, $context ) {
-    // 贈品1: 茸茸被
-    $fleece_blanket_exists = false;
+function nyb_apply_activity_3( $cart, $stats, $context ) {
+    $gifts_needed = [
+        NYB_GIFT_HUG_PILLOW => false,
+        NYB_GIFT_EYE_MASK => false
+    ];
 
+    // 檢查已有的贈品
     foreach ( $cart->get_cart() as $cart_item ) {
         if ( isset( $cart_item['_nyb_auto_gift'] ) &&
-             $cart_item['_nyb_auto_gift'] === 'bundle7' &&
-             $cart_item['product_id'] == NYB_GIFT_FLEECE_BLANKET ) {
-            $fleece_blanket_exists = true;
-            break;
+             $cart_item['_nyb_auto_gift'] === 'bundle3' ) {
+            $product_id = $cart_item['product_id'];
+            if ( isset( $gifts_needed[ $product_id ] ) ) {
+                $gifts_needed[ $product_id ] = true;
+            }
         }
     }
 
-    if ( ! $fleece_blanket_exists ) {
-				$cart->add_to_cart( NYB_GIFT_FLEECE_BLANKET, 1, 0, array(), array( '_nyb_auto_gift' => 'bundle7' ) );
-				nyb_log( sprintf( "[活動7] 自動加入茸茸被 | ID: %s", NYB_GIFT_FLEECE_BLANKET ), $context );
-		}
+    // 加入缺少的贈品
+    foreach ( $gifts_needed as $gift_id => $exists ) {
+        if ( ! $exists ) {
+            $cart->add_to_cart( $gift_id, 1, 0, array(), array( '_nyb_auto_gift' => 'bundle3' ) );
+            nyb_log( sprintf( "[活動3] 自動加入贈品 | ID: %s", $gift_id ), $context );
+        }
+    }
 
-    // 贈品2: 天絲四件組床包（使用虛擬商品）
+    // 將贈品價格設為 0
+    foreach ( $cart->get_cart() as $cart_item_key => $cart_item ) {
+        if ( isset( $cart_item['_nyb_auto_gift'] ) &&
+             $cart_item['_nyb_auto_gift'] === 'bundle3' ) {
+            $original_price = $cart_item['data']->get_regular_price();
+            $cart_item['data']->set_price( 0 );
+            $cart_item['data']->add_meta_data( '_is_free_gift', 'yes', true );
+            $cart_item['data']->add_meta_data( '_original_price', $original_price, true );
+            nyb_log( sprintf( "[活動3] 將贈品價格設為 0 | ID: %s, 原價: %s", $cart_item['product_id'], $original_price ), $context );
+        }
+    }
+}
+
+/**
+ * =======================================================
+ * 模組 7：活動4 - 滿額贈天絲床包四件組
+ * =======================================================
+ */
+function nyb_apply_activity_4( $cart, $stats, $context ) {
+    // 找出床墊的尺寸（用於確定床包價值）
+    // 優先使用嗜睡床墊，如果沒有則使用賴床墊
     $mattress_var_id = null;
+
     foreach ( $cart->get_cart() as $cart_item ) {
         $variation_id = $cart_item['variation_id'];
 
@@ -2121,35 +1456,40 @@ function nyb_apply_activity_7( $cart, $stats, $context ) {
             continue;
         }
 
-        // ⚡ 使用 Hash Map
+        // 優先使用嗜睡床墊
         if ( isset( NYB_SPRING_MATTRESS_VARS_MAP[ $variation_id ] ) ) {
             $mattress_var_id = $variation_id;
             break;
         }
     }
 
-    if ( $mattress_var_id && isset( NYB_BEDDING_VALUE_MAP[ $mattress_var_id ] ) ) {
-				nyb_log( sprintf( "[活動7] nyb_apply_activity_7 mattress_var_id: %s", $mattress_var_id ), $context );
-        // 添加虛擬床包商品到購物車
-        $result = NYB_Virtual_Bedding_Product::add_to_cart( $cart, $mattress_var_id, 'bundle7' );
+    // 如果沒有嗜睡床墊，使用賴床墊
+    if ( ! $mattress_var_id ) {
+        foreach ( $cart->get_cart() as $cart_item ) {
+            $variation_id = $cart_item['variation_id'];
 
-        if ( $result ) {
-            nyb_log( sprintf( "[活動7] 已添加天絲四件組床包到購物車 | 床墊 Variation ID: %s, 床包價值: %s", $mattress_var_id, NYB_BEDDING_VALUE_MAP[ $mattress_var_id ] ), $context );
+            // 排除贈品
+            if ( isset( $cart_item['_nyb_auto_gift'] ) ) {
+                continue;
+            }
+
+            if ( isset( NYB_LAI_MATTRESS_VARS_MAP[ $variation_id ] ) ) {
+                $mattress_var_id = $variation_id;
+                break;
+            }
         }
     }
 
-    // 將贈品價格設為 0
-    foreach ( $cart->get_cart() as $cart_item_key => $cart_item ) {
-        if ( isset( $cart_item['_nyb_auto_gift'] ) &&
-							$cart_item['_nyb_auto_gift'] === 'bundle7' &&
-							$cart_item['product_id'] == NYB_GIFT_FLEECE_BLANKET ) {
-							$original_price = $cart_item['data']->get_regular_price();
-							$cart_item['data']->set_price( 0 );
-							$cart_item['data']->add_meta_data( '_is_free_gift', 'yes', true );
-							$cart_item['data']->add_meta_data( '_original_price', $original_price, true );
+    if ( $mattress_var_id && isset( NYB_BEDDING_VALUE_MAP[ $mattress_var_id ] ) ) {
+        // 添加虛擬床包商品到購物車
+        $result = NYB_Virtual_Bedding_Product::add_to_cart( $cart, $mattress_var_id, 'bundle4' );
+
+        if ( $result ) {
+            nyb_log( sprintf( "[活動4] 已添加天絲四件組床包到購物車 | 床墊 Variation ID: %s, 床包價值: %s", $mattress_var_id, NYB_BEDDING_VALUE_MAP[ $mattress_var_id ] ), $context );
         }
     }
 }
+
 
 /**
  * 移除不再符合條件的贈品
@@ -2671,4 +2011,5 @@ function nyb_display_order_activity_column_content( $column, $post_id ) {
             echo '<span style="color: #999;">-</span>';
         }
     }
+}
 }
