@@ -50,10 +50,8 @@ class NYB_Activity_Coupon_Display {
             return;
         }
 
-        $activity_status = nyb_calculate_activity_status();
-        $qualified = array_filter( $activity_status, function( $status ) {
-            return $status['status'] === 'qualified';
-        });
+        // 使用與贈品應用相同的邏輯（數量扣減機制）
+        $applied_activities = nyb_get_actually_applied_activities();
 
         $activity_map = [
             'activity_1' => 'nyb_activity_1',
@@ -66,7 +64,7 @@ class NYB_Activity_Coupon_Display {
         ];
 
         $should_have = [];
-        foreach ( $qualified as $key => $data ) {
+        foreach ( $applied_activities as $key ) {
             if ( isset( $activity_map[ $key ] ) ) {
                 $should_have[] = $activity_map[ $key ];
             }
@@ -93,13 +91,13 @@ class NYB_Activity_Coupon_Display {
 			}
 
 			$activity_names = [
-					'nyb_activity_1' => '嗜睡床墊+催眠枕，送茸茸被',
-					'nyb_activity_2' => '賴床墊送抱枕+眼罩',
-					'nyb_activity_3' => '催眠枕任選2顆特價$8,888',
-					'nyb_activity_4' => '催眠枕買一送一，送天絲枕套',
-					'nyb_activity_5' => '嗜睡床墊+催眠枕*2+賴床墊，送天絲四件組床包',
-					'nyb_activity_6' => '嗜睡床墊+床架，送側睡枕',
-					'nyb_activity_7' => '嗜睡床墊+床架+催眠枕*2，送天絲四件組床包+茸茸被'
+					'nyb_activity_1' => '嗜睡床墊任一張+催眠枕任一顆，再送兩用茸茸被一件',
+					'nyb_activity_2' => '買賴床墊，送抱枕+眼罩',
+					'nyb_activity_3' => '枕頭任選2顆 $8888再加碼贈天絲枕套2個',
+					'nyb_activity_4' => '（買一送一），買催眠枕送天絲枕套一件',
+					'nyb_activity_5' => '床墊+催眠枕*2+賴床墊，贈天絲四件組床包',
+					'nyb_activity_6' => '嗜睡床墊+床架，贈側睡枕1顆',
+					'nyb_activity_7' => '床墊+床架+枕頭*2，贈天絲四件組床包+兩用茸茸被'
 			];
 
 			$name = isset( $activity_names[ $code ] ) ? $activity_names[ $code ] : '新年優惠活動';
