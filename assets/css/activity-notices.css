@@ -1,0 +1,169 @@
+/**
+ * 活動通知樣式
+ */
+
+/* 通知容器 */
+.nyb-cart-notices,
+.nyb-product-notices {
+    margin: 20px 0;
+}
+
+/* 單個通知 */
+.nyb-notice {
+    display: flex;
+    align-items: flex-start;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 4px;
+    border-left: 4px solid;
+    background-color: #f9f9f9;
+}
+
+/* 通知類型 */
+.nyb-notice--success {
+    border-left-color: #46b450;
+    background-color: #ecf7ed;
+}
+
+.nyb-notice--warning {
+    border-left-color: #ffb900;
+    background-color: #fff8e5;
+}
+
+.nyb-notice--info {
+    border-left-color: #00a0d2;
+    background-color: #e5f5fa;
+}
+
+/* 通知圖標 */
+.nyb-notice__icon {
+    font-size: 24px;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+/* 通知內容 */
+.nyb-notice__content {
+    flex: 1;
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.nyb-notice__content a {
+    color: inherit;
+    text-decoration: underline;
+    font-weight: bold;
+}
+
+.nyb-notice__content a:hover {
+    text-decoration: none;
+}
+
+/* 枕套選擇器 */
+.nyb-pillowcase-selector {
+    margin: 30px 0;
+    padding: 20px;
+    background-color: #fff;
+    border: 2px solid #e5e5e5;
+    border-radius: 8px;
+}
+
+.nyb-pillowcase-selector__title {
+    margin: 0 0 20px 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.nyb-pillowcase-selector__options {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.nyb-pillowcase-option {
+    flex: 1;
+    min-width: 150px;
+    cursor: pointer;
+}
+
+.nyb-pillowcase-option__input {
+    display: none;
+}
+
+.nyb-pillowcase-option__label {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border: 2px solid #e5e5e5;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.nyb-pillowcase-option__input:checked + .nyb-pillowcase-option__label {
+    border-color: #46b450;
+    background-color: #ecf7ed;
+}
+
+.nyb-pillowcase-option__color {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    margin-right: 10px;
+    border: 2px solid #ddd;
+}
+
+.nyb-pillowcase-option__color--blue {
+    background-color: #4a90e2;
+}
+
+.nyb-pillowcase-option__color--gray {
+    background-color: #9b9b9b;
+}
+
+.nyb-pillowcase-option__color--pink {
+    background-color: #f5a9b8;
+}
+
+.nyb-pillowcase-selector__submit {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+}
+
+.nyb-pillowcase-selector__message {
+    margin-top: 15px;
+    padding: 10px;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.nyb-pillowcase-selector__message--success {
+    background-color: #ecf7ed;
+    color: #46b450;
+}
+
+.nyb-pillowcase-selector__message--error {
+    background-color: #fef7f1;
+    color: #dc3232;
+}
+
+/* 商品頁通知 */
+.nyb-product-notice {
+    margin: 20px 0;
+    padding: 12px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+    .nyb-pillowcase-selector__options {
+        flex-direction: column;
+    }
+
+    .nyb-pillowcase-option {
+        min-width: 100%;
+    }
+}

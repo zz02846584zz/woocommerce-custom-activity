@@ -454,19 +454,33 @@ class NYB_Virtual_Bedding_Product {
      *
      * @param int $variation_id 變體ID
      * @return string 尺寸名稱
+		 *
      */
     private static function get_size_name( $variation_id ) {
         $size_map = [
             2735 => '單人',
             4371 => '單人',
+						3445 => '單人',
+						3695 => '單人',
+						4929 => '單人',
+						4422 => '單人',
             2736 => '單人加大',
             4372 => '單人加大',
+						3446 => '單人加大',
+						3696 => '單人加大',
+						4930 => '單人加大',
+						4423 => '單人加大',
             2737 => '雙人',
             4373 => '雙人',
+						3447 => '雙人',
+						4424 => '雙人',
             2738 => '雙人加大',
             4374 => '雙人加大',
+						3448 => '雙人加大',
+						4425 => '雙人加大',
             2739 => '雙人特大',
             4375 => '雙人特大',
+						4426 => '雙人特大',
         ];
 
         return isset( $size_map[ $variation_id ] ) ? $size_map[ $variation_id ] : '標準';

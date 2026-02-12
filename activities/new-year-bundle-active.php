@@ -1,9 +1,7 @@
 <?php
 require_once CUSTOM_ACTIVITY_PLUGIN_DIR . 'helpers/class-activity-coupon-display.php';
 require_once CUSTOM_ACTIVITY_PLUGIN_DIR . 'helpers/class-virtual-bedding-product.php';
-
-NYB_Activity_Coupon_Display::init();
-NYB_Virtual_Bedding_Product::init();
+require_once CUSTOM_ACTIVITY_PLUGIN_DIR . 'helpers/class-cart-history-tracker.php';
 
 /**
  * =======================================================
@@ -13,7 +11,7 @@ NYB_Virtual_Bedding_Product::init();
  */
 
 // 活動期間
-define( 'NYB_CAMPAIGN_START', '2025-01-05 00:00:00' );
+define( 'NYB_CAMPAIGN_START', '2026-01-10 00:00:00' );
 define( 'NYB_CAMPAIGN_END', '2026-02-28 23:59:59' );
 
 // 日誌開關（生產環境建議設為 false）
@@ -39,14 +37,27 @@ define( 'NYB_SPRING_MATTRESS_VARS_MAP', array_flip( NYB_SPRING_MATTRESS_VARS ) )
 define( 'NYB_BEDDING_VALUE_MAP', [
     2735 => 3680,  // 單人
     4371 => 3680,
+		3445 => 3680,
+		3695 => 3680,
+		4929 => 3680,
+		4422 => 3680,
     2736 => 3880,  // 單人加大
     4372 => 3880,
+		3446 => 3880,
+		3696 => 3880,
+		4930 => 3880,
+		4423 => 3880,
     2737 => 4580,  // 雙人
     4373 => 4580,
+		3447 => 4580,
+		4424 => 4580,
     2738 => 4780,  // 雙人加大
     4374 => 4780,
+		3448 => 4780,
+		4425 => 4780,
     2739 => 4980,  // 雙人特大
     4375 => 4980,
+		4426 => 4980,
 ] );
 
 // 催眠枕
@@ -61,7 +72,7 @@ define( 'NYB_PILLOWCASE_MAP', [
     3044 => 5662
 ] );
 
-define( 'NYB_ALL_ACTIVITY_MAP', array_merge( NYB_LAI_MATTRESS_PARENT_IDS_MAP, NYB_LAI_MATTRESS_VARS_MAP, NYB_SPRING_MATTRESS_PARENT_IDS_MAP, NYB_SPRING_MATTRESS_VARS_MAP, NYB_HYPNOTIC_PILLOW_VARS_MAP ) );
+define( 'NYB_ALL_ACTIVITY_MAP', array_flip( array_merge( NYB_LAI_MATTRESS_PARENT_IDS, NYB_SPRING_MATTRESS_PARENT_IDS, [NYB_HYPNOTIC_PILLOW_PARENT] ) ) );
 
 // 贈品
 define( 'NYB_GIFT_FLEECE_BLANKET', 4180 );  // 茸茸被
@@ -76,7 +87,7 @@ define( 'NYB_ACTIVITY_MAP', [
     'activity_1' => [
         'coupon_code' => 'nyb_activity_1',
         'name' => '買催眠枕送天絲枕套一件（買一送一）',
-        'short_name' => '購買催眠枕送天絲枕套（限一件）',
+        'short_name' => '購買催眠枕送天絲枕套',
         'description' => '購買任一款催眠枕，即可獲得配對天絲枕套一件',
         'priority' => 4
     ],
@@ -96,9 +107,9 @@ define( 'NYB_ACTIVITY_MAP', [
     ],
     'activity_4' => [
         'coupon_code' => 'nyb_activity_4',
-        'name' => '消費滿$50,000，加碼贈天絲四件組床包',
-        'short_name' => '滿50000加碼贈天絲床包四件組',
-        'description' => '消費金額滿50,000元（需含床墊），即贈送天絲四件組床包',
+        'name' => '消費滿$50,000，加碼贈天絲床包四件組（1床包+2枕套+1被套）',
+        'short_name' => '滿50000加碼贈天絲床包四件組（1床包+2枕套+1被套）',
+        'description' => '消費金額滿50,000元，即贈送天絲床包四件組（1床包+2枕套+1被套）',
         'priority' => 1
     ]
 ] );
@@ -133,6 +144,10 @@ if ( $current_time < NYB_CAMPAIGN_START || $current_time > NYB_CAMPAIGN_END ) {
     // 停用所有功能
     return;
 }
+
+// 初始化活動優惠券和虛擬商品
+NYB_Activity_Coupon_Display::init();
+NYB_Virtual_Bedding_Product::init();
 
 /**
  * ⚡ 性能優化：統一日誌函數
@@ -251,14 +266,19 @@ function nyb_show_discount_badge() {
  * ⚡ 與贈品應用邏輯完全同步
  * @return array
  */
-function nyb_calculate_activity_status($product_id = 0) {
+function nyb_calculate_activity_status() {
     // ⚡ 靜態快取
     static $cached_status = null;
     static $cached_cart_hash = null;
 
     $cart = WC()->cart;
     if ( ! $cart || $cart->is_empty() ) {
-        return [];
+        return [
+					'activity_1' => ['status' => 'not_qualified', 'missing' => []],
+					'activity_2' => ['status' => 'not_qualified', 'missing' => []],
+					'activity_3' => ['status' => 'not_qualified', 'missing' => []],
+					'activity_4' => ['status' => 'not_qualified', 'missing' => []],
+				];
     }
 
     // 計算購物車 hash
@@ -287,11 +307,13 @@ function nyb_calculate_activity_status($product_id = 0) {
         }
     }
 
-    if ( $cart_subtotal >= NYB_THRESHOLD_AMOUNT && $stats_copy['available']['any_mattress'] >= 1 ) {
-        if ( nyb_consume_item( $stats_copy, 'any_mattress', 1, 'bundle4' ) ) {
+    if ( $cart_subtotal >= NYB_THRESHOLD_AMOUNT
+		// && $stats_copy['available']['spring_mattress'] >= 1
+		) {
+        // if ( nyb_consume_item( $stats_copy, 'spring_mattress', 1, 'bundle4' ) ) {
             $applied_activities[] = 'activity_4';
             $results['activity_4'] = ['status' => 'qualified', 'missing' => []];
-        }
+        // }
     }
 
     // 【優先級2】活動3: 賴床墊送抱枕+眼罩
@@ -302,20 +324,20 @@ function nyb_calculate_activity_status($product_id = 0) {
         }
     }
 
-    // 【優先級3】活動2: 床墊+催眠枕送茸茸被
-    if ( $stats_copy['available']['any_mattress'] >= 1 &&
+    // 【優先級3】活動2: 床墊+催眠枕送兩用茸茸被
+    if ( $stats_copy['available']['spring_mattress'] >= 1 &&
          $stats_copy['available']['hypnotic_pillow'] >= 1 ) {
-        if ( nyb_consume_item( $stats_copy, 'any_mattress', 1, 'bundle2' ) &&
+        if ( nyb_consume_item( $stats_copy, 'spring_mattress', 1, 'bundle2' ) &&
              nyb_consume_item( $stats_copy, 'hypnotic_pillow', 1, 'bundle2' ) ) {
             $applied_activities[] = 'activity_2';
             $results['activity_2'] = ['status' => 'qualified', 'missing' => []];
         }
     }
 
-    // 【優先級4】活動1: 買枕頭送枕套（只送一個）
+    // 【優先級4】活動1: 買枕頭送枕套（買幾送幾）
     if ( $stats_copy['available']['hypnotic_pillow'] >= 1 ) {
-        // 買一送一：只消耗1個枕頭，送1個枕套
-        if ( nyb_consume_item( $stats_copy, 'hypnotic_pillow', 1, 'bundle1' ) ) {
+				$pillow_qty = $stats_copy['available']['hypnotic_pillow'];
+        if ( nyb_consume_item( $stats_copy, 'hypnotic_pillow', $pillow_qty, 'bundle1' ) ) {
             $applied_activities[] = 'activity_1';
             $results['activity_1'] = ['status' => 'qualified', 'missing' => []];
         }
@@ -340,9 +362,9 @@ function nyb_calculate_activity_status($product_id = 0) {
 
     // 活動2: 床墊+催眠枕送茸茸被
     if ( ! in_array( 'activity_2', $applied_activities ) ) {
-        $total_mattress = $stats['any_mattress_count'];
+        $total_mattress = $stats['spring_mattress_count'];
         $total_pillow = $stats['hypnotic_pillow_count'];
-        $avail_mattress = $stats_copy['available']['any_mattress'];
+        $avail_mattress = $stats_copy['available']['spring_mattress'];
         $avail_pillow = $stats_copy['available']['hypnotic_pillow'];
 
         // 判斷缺少什麼（排除「已被使用完」的商品）
@@ -387,8 +409,8 @@ function nyb_calculate_activity_status($product_id = 0) {
             }
         }
 
-        // $total_mattress = $stats['any_mattress_count'];
-        // $avail_mattress = $stats_copy['available']['any_mattress'];
+        // $total_mattress = $stats['spring_mattress_count'];
+        // $avail_mattress = $stats_copy['available']['spring_mattress'];
 
         $missing = [];
         $amount_needed = NYB_THRESHOLD_AMOUNT - $cart_subtotal;
@@ -429,7 +451,6 @@ function nyb_analyze_cart_contents() {
         // 總數量（購買的商品數量）
         'spring_mattress_count' => 0,
         'lai_mattress_count' => 0,
-        'any_mattress_count' => 0,  // 所有床墊（嗜睡+賴床墊）
         'hypnotic_pillow_count' => 0,
         'hypnotic_pillow_vars' => [],
 
@@ -437,7 +458,6 @@ function nyb_analyze_cart_contents() {
         'available' => [
             'spring_mattress' => 0,
             'lai_mattress' => 0,
-            'any_mattress' => 0,
             'hypnotic_pillow' => 0,
         ],
 
@@ -459,16 +479,12 @@ function nyb_analyze_cart_contents() {
         if ( isset( NYB_SPRING_MATTRESS_VARS_MAP[ $variation_id ] ) ) {
             $stats['spring_mattress_count'] += $quantity;
             $stats['available']['spring_mattress'] += $quantity;
-            $stats['any_mattress_count'] += $quantity;
-            $stats['available']['any_mattress'] += $quantity;
         }
 
         // 賴床墊
         if ( isset( NYB_LAI_MATTRESS_VARS_MAP[ $variation_id ] ) ) {
             $stats['lai_mattress_count'] += $quantity;
             $stats['available']['lai_mattress'] += $quantity;
-            $stats['any_mattress_count'] += $quantity;
-            $stats['available']['any_mattress'] += $quantity;
         }
 
         // 催眠枕
@@ -535,6 +551,14 @@ function nyb_get_related_activities( $product_id, $variation_id = 0 ) {
 			$check_id = 0;
 		}
 
+		if( $check_id == 0 ) {
+			$related[] = ['key' => 'activity_4', 'data' => $all_status['activity_4'], 'priority' => 1];
+			$related[] = ['key' => 'activity_3', 'data' => $all_status['activity_3'], 'priority' => 2];
+			$related[] = ['key' => 'activity_2', 'data' => $all_status['activity_2'], 'priority' => 3];
+			$related[] = ['key' => 'activity_1', 'data' => $all_status['activity_1'], 'priority' => 4];
+			return $related;
+		}
+
 		// 賴床墊相關
 		if ( isset( NYB_LAI_MATTRESS_VARS_MAP[ $check_id ] ) || isset( NYB_LAI_MATTRESS_PARENT_IDS_MAP[ $product_id ] ) ) {
 				if ( isset( $all_status['activity_2'] ) ) {
@@ -586,7 +610,7 @@ function nyb_get_activity_description( $activity_key ) {
             'activity_1' => '購買催眠枕送天絲枕套一件（買一送一）',
             'activity_2' => '購買床墊+催眠枕送兩用茸茸被',
             'activity_3' => '購買賴床墊送抱枕+眼罩',
-            'activity_4' => '滿50000加碼贈天絲床包四件組'
+            'activity_4' => '消費滿50000加碼贈天絲床包四件組（1床包+2枕套+1被套）'
         ];
     }
 
@@ -624,12 +648,12 @@ function nyb_get_category_links( $category ) {
         'hypnotic_pillow' => nyb_get_product_link( NYB_HYPNOTIC_PILLOW_PARENT, '催眠枕' ),
         'lai_mattress' => nyb_get_product_link( 3444, '賴床墊' ),
         'bed_frame' => nyb_get_product_link( 4930, '床架' ),
-        'fleece_blanket' => nyb_get_product_link( NYB_GIFT_FLEECE_BLANKET, '茸茸被' ),
+        'fleece_blanket' => nyb_get_product_link( NYB_GIFT_FLEECE_BLANKET, '兩用茸茸被' ),
         'hug_pillow' => nyb_get_product_link( NYB_GIFT_HUG_PILLOW, '抱枕' ),
         'eye_mask' => nyb_get_product_link( NYB_GIFT_EYE_MASK, '眼罩' ),
         'side_pillow' => nyb_get_product_link( NYB_HYPNOTIC_PILLOW_PARENT, '側睡枕' ),
         'pillowcase' => nyb_get_product_link( NYB_HYPNOTIC_PILLOW_PARENT, '天絲枕套' ),
-        'bedding_set' => '<strong>天絲四件組床包</strong>'  // 無連結，未上架
+        'bedding_set' => '<strong>天絲床包四件組（1床包+2枕套+1被套）</strong>'  // 無連結，未上架
     ];
 
     return isset( $links[ $category ] ) ? $links[ $category ] : $category;
@@ -686,7 +710,7 @@ function nyb_get_activity_notice( $activity_key, $status, $missing = [] ) {
         'activity_2' => [
             'qualified' => [
                 'title' => '🎁 已符合優惠',
-                'message' => '已購買床墊和' . $hypnotic_pillow_link . '，將獲贈' . $fleece_blanket_link,
+                'message' => '已購買' . $spring_mattress_link . '和' . $hypnotic_pillow_link . '，將獲贈' . $fleece_blanket_link,
                 'type' => 'success'
             ],
             'almost' => [
@@ -755,23 +779,24 @@ function nyb_get_activity_notice( $activity_key, $status, $missing = [] ) {
                     foreach ( $missing as $item ) {
                         if ( strpos( $item, '還差' ) !== false ) {
                             $message_parts[] = $item;
-                        } elseif ( strpos( $item, '床墊' ) !== false ) {
-                            $message_parts[] = $item;
                         }
+												// elseif ( strpos( $item, '床墊' ) !== false ) {
+                        //     $message_parts[] = $item;
+                        // }
                     }
 
                     if ( ! empty( $message_parts ) ) {
                         return implode( '、', $message_parts ) . '，可享優惠「' . $activity_name . '」。';
                     }
 
-                    return '消費滿' . wc_price( NYB_THRESHOLD_AMOUNT ) . '（含床墊），可享優惠「' . $activity_name . '」。';
+                    return '消費滿' . wc_price( NYB_THRESHOLD_AMOUNT ) . '，可享優惠「' . $activity_name . '」。';
                 },
                 'type' => 'info'
             ],
             'not_qualified' => [
                 'title' => '',
                 'message' => function() use ( $bedding_set_link ) {
-                    return '消費滿' . wc_price( NYB_THRESHOLD_AMOUNT ) . '（含床墊），即可獲贈' . $bedding_set_link;
+                    return '消費滿' . wc_price( NYB_THRESHOLD_AMOUNT ) . '，即可獲贈' . $bedding_set_link;
                 },
                 'type' => 'info'
             ]
@@ -813,61 +838,59 @@ function nyb_smart_product_page_notice() {
 
     global $product;
 
+    // 檢查購物車狀態
+    $cart = WC()->cart;
+    $cart_empty = ! $cart || $cart->is_empty();
+
     $product_id = $product->get_id();
     $parent_id = $product->get_parent_id();
 
+		if ( $cart_empty ) {
+			$product_id = 0;
+			$parent_id = 0;
+		}
+
     // 獲取與此商品相關的活動
     $related_activities = nyb_get_related_activities( $parent_id != 0 ? $parent_id : $product_id, 0 );
-		nyb_log( 'nyb_smart_product_page_notice 868', $related_activities );
 
     if ( empty( $related_activities ) ) {
-				nyb_log( 'nyb_smart_product_page_notice 869 empty', $related_activities );
         return;
     }
 
-    // 檢查購物車狀態
-    // $cart = WC()->cart;
-    // $cart_empty = ! $cart || $cart->is_empty();
-
-    // if ( $cart_empty ) {
+    if ( $cart_empty ) {
         // 情境A: 購物車為空 - 顯示通用活動說明
-    //     nyb_display_general_activity_notice( $related_activities );
-    // } else {
+        nyb_display_general_activity_notice( $related_activities );
+    } else {
         // 情境B: 購物車有商品 - 顯示條件式提示
-				// nyb_log( 'nyb_display_conditional_notice 882', $related_activities );
         nyb_display_conditional_notice( $related_activities );
-    // }
+    }
 }
 
 /**
  * 顯示通用活動說明（購物車為空時）
  * ⚡ UI/UX 優化：每個活動獨立顯示
  */
-// function nyb_display_general_activity_notice( $activities ) {
+function nyb_display_general_activity_notice( $activities ) {
+    if ( empty( $activities ) ) {
+        return;
+    }
 
-// 	  nyb_log( 'nyb_display_general_activity_notice', $activities );
-//     if ( empty( $activities ) ) {
-//         return;
-//     }
+    // 每個活動獨立顯示一個提示框
+    foreach ( $activities as $activity ) {
+        $notice = nyb_get_activity_notice( $activity['key'], 'almost', [] );
 
-//     // 每個活動獨立顯示一個提示框
-//     foreach ( $activities as $activity ) {
-//         $notice = nyb_get_activity_notice( $activity['key'], 'almost', [] );
-
-//         echo '<div class="woocommerce-info" style="margin-bottom: 15px; padding: 12px 15px; border-left: 4px solid #2196f3;">';
-//         // echo '<div style="font-weight: bold; margin-bottom: 5px;">' . $notice['title'] . '</div>';
-//         echo '<div data-missing="' . json_encode( $notice['missing'] ) . '" style="font-size: 14px;">' . $notice['message'] . '</div>';
-//         echo '</div>';
-//     }
-// }
+        echo '<div class="woocommerce-info" style="margin-bottom: 15px; padding: 12px 15px; border-left: 4px solid #2196f3;">';
+        // echo '<div style="font-weight: bold; margin-bottom: 5px;">' . $notice['title'] . '</div>';
+        echo '<div data-missing="' . json_encode( $notice['missing'] ) . '" style="font-size: 14px;">' . $notice['message'] . '</div>';
+        echo '</div>';
+    }
+}
 
 /**
  * 顯示條件式提示（購物車有商品時）
  * ⚡ UI/UX 優化：每個活動獨立顯示，同時顯示已符合和差一點的活動
  */
 function nyb_display_conditional_notice( $activities ) {
-		nyb_log( 'nyb_display_conditional_notice 922', $activities );
-
     $qualified = [];   // 已符合的活動
     $almost = [];      // 差一點符合的活動
 		$not_qualified = []; // 不符合的活動
@@ -898,8 +921,8 @@ function nyb_display_conditional_notice( $activities ) {
         foreach ( $almost as $act ) {
             $notice = nyb_get_activity_notice( $act['key'], 'almost', $act['data']['missing'] );
 
-            echo '<div class="woocommerce-message" style="margin-bottom: 15px; padding: 12px 15px; background: linear-gradient(135deg, #fff8e8 0%, #ffefc7 100%) !important; border-left: 4px solid #d4a548 !important;">';
-            echo '<div data-missing="' . json_encode( $notice['missing'] ) . '" style="font-size: 14px; color: #8b6f1e;">' . $notice['message'] . '</div>';
+            echo '<div class="woocommerce-message" style="margin-bottom: 15px; padding: 12px 15px; background: #fff3e0 !important; border-left: 4px solid #ff9800 !important;">';
+            echo '<div data-missing="' . json_encode( $notice['missing'] ) . '" style="font-size: 14px; color: #e65100;">' . $notice['message'] . '</div>';
             echo '</div>';
         }
     }
@@ -941,8 +964,6 @@ function nyb_cart_page_notice() {
 
     $activity_status = nyb_calculate_activity_status();
 
-		nyb_log( 'nyb_cart_page_notice 1019: ' . json_encode( $activity_status ), $activity_status );
-
     // 顯示「差一點」的活動（每個獨立顯示）
     $almost = array_filter( $activity_status, function( $status ) {
         return $status['status'] === 'almost';
@@ -952,8 +973,8 @@ function nyb_cart_page_notice() {
         foreach ( $almost as $key => $data ) {
             $notice = nyb_get_activity_notice( $key, 'almost', $data['missing'] );
 
-            echo '<div class="woocommerce-message" style="margin-bottom: 15px; padding: 12px 15px; background: linear-gradient(135deg, #fff8e8 0%, #ffefc7 100%) !important; border-left: 4px solid #d4a548 !important;">';
-            echo '<div style="color: #8b6f1e;">' . $notice['message'] . '</div>';
+            echo '<div class="woocommerce-message" style="margin-bottom: 15px; padding: 12px 15px; background: #fff3e0 !important; border-left: 4px solid #ff9800 !important;">';
+            echo '<div style="color: #e65100;">' . $notice['message'] . '</div>';
             echo '</div>';
         }
     }
@@ -995,7 +1016,7 @@ function nyb_get_actually_applied_activities() {
     $stats = nyb_analyze_cart_contents();
     $applied_activities = [];
 
-    // 【優先級1】活動4: 滿額贈天絲床包四件組
+    // 【優先級1】活動4: 滿額贈天絲床包四件組（1床包+2枕套+1被套）
     // 手動計算購物車小計（排除贈品）
     $cart_subtotal = 0;
     foreach ( $cart->get_cart() as $cart_item ) {
@@ -1004,10 +1025,12 @@ function nyb_get_actually_applied_activities() {
         }
     }
 
-    if ( $cart_subtotal >= NYB_THRESHOLD_AMOUNT && $stats['available']['any_mattress'] >= 1 ) {
-        if ( nyb_consume_item( $stats, 'any_mattress', 1, 'bundle4' ) ) {
+    if ( $cart_subtotal >= NYB_THRESHOLD_AMOUNT
+		// && $stats['available']['spring_mattress'] >= 1
+		) {
+        // if ( nyb_consume_item( $stats, 'spring_mattress', 1, 'bundle4' ) ) {
             $applied_activities[] = 'activity_4';
-        }
+        // }
     }
 
     // 【優先級2】活動3: 賴床墊送抱枕+眼罩
@@ -1017,19 +1040,19 @@ function nyb_get_actually_applied_activities() {
         }
     }
 
-    // 【優先級3】活動2: 床墊+催眠枕送茸茸被
-    if ( $stats['available']['any_mattress'] >= 1 &&
+    // 【優先級3】活動2: 床墊+催眠枕送兩用茸茸被
+    if ( $stats['available']['spring_mattress'] >= 1 &&
          $stats['available']['hypnotic_pillow'] >= 1 ) {
-        if ( nyb_consume_item( $stats, 'any_mattress', 1, 'bundle2' ) &&
+        if ( nyb_consume_item( $stats, 'spring_mattress', 1, 'bundle2' ) &&
              nyb_consume_item( $stats, 'hypnotic_pillow', 1, 'bundle2' ) ) {
             $applied_activities[] = 'activity_2';
         }
     }
 
-    // 【優先級4】活動1: 買枕頭送枕套（只送一個）
+    // 【優先級4】活動1: 買枕頭送枕套（買幾送幾）
     if ( $stats['available']['hypnotic_pillow'] >= 1 ) {
-        // 買一送一：只消耗1個枕頭，送1個枕套
-        if ( nyb_consume_item( $stats, 'hypnotic_pillow', 1, 'bundle1' ) ) {
+				$pillow_qty = $stats['available']['hypnotic_pillow'];
+        if ( nyb_consume_item( $stats, 'hypnotic_pillow', $pillow_qty, 'bundle1' ) ) {
             $applied_activities[] = 'activity_1';
         }
     }
@@ -1226,9 +1249,9 @@ function nyb_activity_detection_engine( $cart ) {
     $stats = nyb_analyze_cart_contents();
 
     nyb_log( sprintf(
-        "[新年活動] 購物車統計 | 所有床墊:%d(可用:%d), 賴床墊:%d(可用:%d), 催眠枕:%d(可用:%d)",
-        $stats['any_mattress_count'],
-        $stats['available']['any_mattress'],
+        "[新年活動] 購物車統計 | 嗜睡床墊:%d(可用:%d), 賴床墊:%d(可用:%d), 催眠枕:%d(可用:%d)",
+        $stats['spring_mattress_count'],
+        $stats['available']['spring_mattress'],
         $stats['lai_mattress_count'],
         $stats['available']['lai_mattress'],
         $stats['hypnotic_pillow_count'],
@@ -1238,7 +1261,7 @@ function nyb_activity_detection_engine( $cart ) {
     // --- 步驟 2: 按優先級檢查活動並應用（數量扣減機制）---
     $applied_activities = [];
 
-    // 【優先級1】活動4: 滿額贈天絲床包四件組
+    // 【優先級1】活動4: 滿額贈天絲床包四件組（1床包+2枕套+1被套）
     // 手動計算購物車小計（排除贈品）
     $cart_subtotal = 0;
     foreach ( $cart->get_cart() as $cart_item ) {
@@ -1249,16 +1272,17 @@ function nyb_activity_detection_engine( $cart ) {
     }
 
     nyb_log( sprintf( "[活動4 檢查] 購物車金額:%s (手動計算), 門檻:%s, 可用床墊:%d",
-        $cart_subtotal, NYB_THRESHOLD_AMOUNT, $stats['available']['any_mattress'] ), $context );
+        $cart_subtotal, NYB_THRESHOLD_AMOUNT, $stats['available']['spring_mattress'] ), $context );
 
-    if ( $cart_subtotal >= NYB_THRESHOLD_AMOUNT && $stats['available']['any_mattress'] >= 1 ) {
-        if ( nyb_consume_item( $stats, 'any_mattress', 1, 'bundle4' ) ) {
+    // if ( $cart_subtotal >= NYB_THRESHOLD_AMOUNT && $stats['available']['spring_mattress'] >= 1 ) {
+    if ( $cart_subtotal >= NYB_THRESHOLD_AMOUNT ) {
+        // if ( nyb_consume_item( $stats, 'spring_mattress', 1, 'bundle4' ) ) {
             nyb_apply_activity_4( $cart, $stats, $context );
             $applied_activities[] = 'bundle4';
-            nyb_log( "[活動4] 套用成功 | 剩餘床墊:{$stats['available']['any_mattress']}, 消費金額:" . $cart_subtotal, $context );
-        } else {
-            nyb_log( "[活動4] 扣減失敗", $context );
-        }
+            nyb_log( "[活動4] 套用成功 | 剩餘床墊:{$stats['available']['spring_mattress']}, 消費金額:" . $cart_subtotal, $context );
+        // } else {
+        //     nyb_log( "[活動4] 扣減失敗", $context );
+        // }
     } else {
         nyb_log( "[活動4] 不符合條件", $context );
     }
@@ -1273,23 +1297,24 @@ function nyb_activity_detection_engine( $cart ) {
     }
 
     // 【優先級3】活動2: 床墊+催眠枕送茸茸被
-    if ( $stats['available']['any_mattress'] >= 1 &&
+    if ( $stats['available']['spring_mattress'] >= 1 &&
          $stats['available']['hypnotic_pillow'] >= 1 ) {
-        if ( nyb_consume_item( $stats, 'any_mattress', 1, 'bundle2' ) &&
+        if ( nyb_consume_item( $stats, 'spring_mattress', 1, 'bundle2' ) &&
              nyb_consume_item( $stats, 'hypnotic_pillow', 1, 'bundle2' ) ) {
             nyb_apply_activity_2( $cart, $stats, $context );
             $applied_activities[] = 'bundle2';
-            nyb_log( "[活動2] 套用成功 | 剩餘: 床墊:{$stats['available']['any_mattress']}, 催眠枕:{$stats['available']['hypnotic_pillow']}", $context );
+            nyb_log( "[活動2] 套用成功 | 剩餘: 床墊:{$stats['available']['spring_mattress']}, 催眠枕:{$stats['available']['hypnotic_pillow']}", $context );
         }
     }
 
-    // 【優先級4】活動1: 買枕頭送枕套（只送一個）
+    // 【優先級4】活動1: 買枕頭送枕套（買幾送幾）
     if ( $stats['available']['hypnotic_pillow'] >= 1 ) {
-        // 買一送一：只消耗1個枕頭，送1個枕套
-        if ( nyb_consume_item( $stats, 'hypnotic_pillow', 1, 'bundle1' ) ) {
-            nyb_apply_activity_1( $cart, $stats, $context );
+				$pillow_qty = $stats['available']['hypnotic_pillow'];
+
+        if ( nyb_consume_item( $stats, 'hypnotic_pillow', $pillow_qty, 'bundle1' ) ) {
+            nyb_apply_activity_1( $cart, $stats, $context, $pillow_qty );
             $applied_activities[] = 'bundle1';
-            nyb_log( "[活動1] 套用成功 | 買一送一（只送一個枕套）", $context );
+            nyb_log( "[活動1] 套用成功 | 買幾送幾", $context );
         }
     }
 
@@ -1330,38 +1355,33 @@ function nyb_find_gift_product_in_cart( $product_id, $metadata_key = '_is_free_g
 
 /**
  * =======================================================
- * 模組 4：活動1 - 買枕頭送枕套（買一送一，只送一個）
+ * 模組 4：活動1 - 買枕頭送枕套（買幾送幾）
  * =======================================================
  */
-function nyb_apply_activity_1( $cart, $stats, $context ) {
+function nyb_apply_activity_1( $cart, $stats, $context, $available_pillow_qty ) {
     // 收集購物車中所有購買的催眠枕
     $purchased_pillows = [];
 
-    foreach ( $cart->get_cart() as $cart_item_key => $cart_item ) {
-        $variation_id = $cart_item['variation_id'];
+		$tracker = new NYB_Cart_History_Tracker();
+		$history = $tracker->get_history();
+		$pillow_histories = array_filter($history, function($item) {
+			return $item['product_id'] === NYB_HYPNOTIC_PILLOW_PARENT;
+		});
 
-        // 排除贈品
-        if ( isset( $cart_item['_nyb_auto_gift'] ) ) {
-            continue;
-        }
+		$pillow_qty = 0;
+		while($pillow_qty < $available_pillow_qty) {
+			$pillow_history = array_pop($pillow_histories);
+			$purchased_pillows[ $pillow_history['variation_id'] ] = [
+				'quantity' => ($purchased_pillows[ $pillow_history['variation_id'] ]['quantity'] ?? 0) + 1,
+			];
 
-        // 只處理催眠枕
-        if ( isset( NYB_HYPNOTIC_PILLOW_VARS_MAP[ $variation_id ] ) ) {
-            if ( ! isset( $purchased_pillows[ $variation_id ] ) ) {
-                $purchased_pillows[ $variation_id ] = [
-                    'quantity' => 0,
-                    'name' => $cart_item['data']->get_name(),
-                    'cart_item_key' => $cart_item_key
-                ];
-            }
-            $purchased_pillows[ $variation_id ]['quantity'] += $cart_item['quantity'];
-        }
-    }
+			$pillow_qty++;
+		}
 
     // 如果沒有購買任何催眠枕，清空 session 並移除贈品
     if ( empty( $purchased_pillows ) ) {
         WC()->session->__unset( 'nyb_bundle1_pillow_gifts' );
-        WC()->session->__unset( 'nyb_selected_pillow_variation' );
+        WC()->session->__unset( 'nyb_selected_pillowcases' );
         foreach ( $cart->get_cart() as $cart_item_key => $cart_item ) {
             if ( isset( $cart_item['_nyb_auto_gift'] ) && $cart_item['_nyb_auto_gift'] === 'bundle1' ) {
                 $cart->remove_cart_item( $cart_item_key );
@@ -1370,48 +1390,55 @@ function nyb_apply_activity_1( $cart, $stats, $context ) {
         return;
     }
 
-    // 檢查用戶之前選擇的款式是否還在購物車中，如果不在則清除選擇
-    $user_selected_pillow = WC()->session->get( 'nyb_selected_pillow_variation' );
-    if ( $user_selected_pillow && ! isset( $purchased_pillows[ $user_selected_pillow ] ) ) {
-        WC()->session->__unset( 'nyb_selected_pillow_variation' );
-        nyb_log( sprintf( "[活動1] 用戶選擇的枕頭已移除，清除選擇 | 枕頭 ID: %s", $user_selected_pillow ), $context );
-    }
-
-    nyb_log( "[活動1] 買一送一（只送一個枕套）", $context );
-
-    // 獲取用戶選擇（已在上面檢查過有效性）
-    $user_selected_pillow = WC()->session->get( 'nyb_selected_pillow_variation' );
-    $pillowcase_to_add = null;
-    $pillowcase_id = null;
-
-    // 如果用戶已選擇且該款式在購物車中
-    if ( $user_selected_pillow && isset( $purchased_pillows[ $user_selected_pillow ] ) ) {
-        if ( isset( NYB_PILLOWCASE_MAP[ $user_selected_pillow ] ) ) {
-            $pillowcase_id = NYB_PILLOWCASE_MAP[ $user_selected_pillow ];
-            $pillowcase_to_add = [ $pillowcase_id => 1 ];
-            nyb_log( sprintf( "[活動1] 使用用戶選擇的枕套 | 枕頭 ID: %s", $user_selected_pillow ), $context );
+    // 展開為單個枕頭項目（與前端顯示邏輯一致）
+    $pillow_items = [];
+    $pillow_index = 0;
+    foreach ( $purchased_pillows as $pillow_var_id => $pillow_data ) {
+        for ( $i = 0; $i < $pillow_data['quantity']; $i++ ) {
+            $pillow_items[] = [
+                'index' => $pillow_index++,
+                'variation_id' => $pillow_var_id
+            ];
         }
     }
 
-    // 如果沒有用戶選擇，使用第一個找到的枕頭款式
-    if ( ! $pillowcase_to_add ) {
-        foreach ( $purchased_pillows as $var_id => $pillow_data ) {
-            if ( isset( NYB_PILLOWCASE_MAP[ $var_id ] ) ) {
-                $pillowcase_id = NYB_PILLOWCASE_MAP[ $var_id ];
-                $pillowcase_to_add = [ $pillowcase_id => 1 ];
-                nyb_log( sprintf( "[活動1] 使用預設枕套（第一個） | 枕頭 ID: %s", $var_id ), $context );
-                break;
+    // 獲取用戶選擇
+    $user_selections = WC()->session->get( 'nyb_selected_pillowcases', array() );
+
+    // 準備要添加的枕套贈品
+    $pillowcases_to_add = array();
+
+    foreach ( $pillow_items as $item ) {
+        $index = $item['index'];
+        $variation_id = $item['variation_id'];
+        $selected_pillowcase_id = null;
+
+        // 檢查是否有用戶選擇
+        if ( isset( $user_selections[ $index ] ) ) {
+            $selected_pillowcase_id = $user_selections[ $index ];
+        } else {
+            // 使用預設對應的枕套
+            if ( isset( NYB_PILLOWCASE_MAP[ $variation_id ] ) ) {
+                $selected_pillowcase_id = NYB_PILLOWCASE_MAP[ $variation_id ];
             }
         }
+
+        if ( $selected_pillowcase_id ) {
+            // 買幾送幾：累加每個枕頭對應的枕套數量
+            if ( ! isset( $pillowcases_to_add[ $selected_pillowcase_id ] ) ) {
+                $pillowcases_to_add[ $selected_pillowcase_id ] = 0;
+            }
+            $pillowcases_to_add[ $selected_pillowcase_id ] += 1;
+        }
     }
 
-    if ( ! $pillowcase_to_add ) {
+    if ( empty( $pillowcases_to_add ) ) {
         nyb_log( "[活動1] 未找到對應的枕套", $context );
         return;
     }
 
     // 儲存到 session
-    WC()->session->set( 'nyb_bundle1_pillow_gifts', $pillowcase_to_add );
+    WC()->session->set( 'nyb_bundle1_pillow_gifts', $pillowcases_to_add );
 
     // 移除舊的活動1贈品
     foreach ( $cart->get_cart() as $cart_item_key => $cart_item ) {
@@ -1420,15 +1447,17 @@ function nyb_apply_activity_1( $cart, $stats, $context ) {
         }
     }
 
-    // 添加枕套贈品（只送1個）
-    $cart->add_to_cart(
-        NYB_HYPNOTIC_PILLOW_PARENT,
-        1, // 數量固定為1
-        $pillowcase_id,
-        array(),
-        array( '_nyb_auto_gift' => 'bundle1', '_nyb_gift_type' => 'pillowcase' )
-    );
-    nyb_log( sprintf( "[活動1] 自動加入枕套贈品 | Variation ID: %s, 數量: 1", $pillowcase_id ), $context );
+    // 添加所有枕套贈品
+    foreach ( $pillowcases_to_add as $pillowcase_id => $quantity ) {
+        $cart->add_to_cart(
+            NYB_HYPNOTIC_PILLOW_PARENT,
+            $quantity,
+            $pillowcase_id,
+            array(),
+            array( '_nyb_auto_gift' => 'bundle1', '_nyb_gift_type' => 'pillowcase' )
+        );
+        nyb_log( sprintf( "[活動1] 自動加入枕套贈品 | Variation ID: %s, 數量: %d", $pillowcase_id, $quantity ), $context );
+    }
 
     // 將贈品價格設為 0
     foreach ( $cart->get_cart() as $cart_item_key => $cart_item ) {
@@ -1448,35 +1477,56 @@ function nyb_apply_activity_1( $cart, $stats, $context ) {
  */
 
 /**
- * AJAX 處理：保存用戶選擇的枕套款式
+ * AJAX 處理：保存用戶選擇的枕套款式（支援多個枕頭）
  */
-add_action( 'wp_ajax_nyb_save_pillowcase_choice', 'nyb_save_pillowcase_choice' );
-add_action( 'wp_ajax_nopriv_nyb_save_pillowcase_choice', 'nyb_save_pillowcase_choice' );
-function nyb_save_pillowcase_choice() {
+// add_action( 'wp_ajax_nyb_save_pillowcase_choices', 'nyb_save_pillowcase_choices' );
+// add_action( 'wp_ajax_nopriv_nyb_save_pillowcase_choices', 'nyb_save_pillowcase_choices' );
+function nyb_save_pillowcase_choices() {
     check_ajax_referer( 'nyb_pillowcase_choice', 'nonce' );
 
-    $pillow_variation_id = isset( $_POST['pillow_id'] ) ? intval( $_POST['pillow_id'] ) : 0;
+    $choices_json = isset( $_POST['choices'] ) ? $_POST['choices'] : '';
+    $choices = json_decode( stripslashes( $choices_json ), true );
 
-    if ( $pillow_variation_id && isset( NYB_HYPNOTIC_PILLOW_VARS_MAP[ $pillow_variation_id ] ) ) {
-        WC()->session->set( 'nyb_selected_pillow_variation', $pillow_variation_id );
+    if ( empty( $choices ) || ! is_array( $choices ) ) {
+        wp_send_json_error( [ 'message' => '無效的選擇資料' ] );
+        return;
+    }
+
+    // 驗證並重建為關聯陣列 [index => pillowcase_id]
+    $validated_choices = array();
+    foreach ( $choices as $choice ) {
+        if ( ! isset( $choice['index'] ) || ! isset( $choice['pillowcase_id'] ) ) {
+            continue;
+        }
+
+        $index = intval( $choice['index'] );
+        $pillowcase_id = intval( $choice['pillowcase_id'] );
+
+        if ( $index >= 0 && $pillowcase_id > 0 ) {
+            $validated_choices[ $index ] = $pillowcase_id;
+        }
+    }
+
+    if ( ! empty( $validated_choices ) ) {
+        WC()->session->set( 'nyb_selected_pillowcases', $validated_choices );
 
         // 記錄日誌
         $context = array( 'source' => 'newyear-bundle' );
-        nyb_log( sprintf( "[活動1] 用戶選擇枕套 | 枕頭 ID: %s", $pillow_variation_id ), $context );
+        nyb_log( sprintf( "[活動1] 用戶選擇枕套 | 選擇: %s", json_encode( $validated_choices, JSON_UNESCAPED_UNICODE ) ), $context );
 
         wp_send_json_success( [
             'message' => '已更新枕套選擇',
-            'pillow_id' => $pillow_variation_id
+            'choices' => $validated_choices
         ] );
     } else {
-        wp_send_json_error( [ 'message' => '無效的枕頭 ID' ] );
+        wp_send_json_error( [ 'message' => '無效的枕頭選擇' ] );
     }
 }
 
 /**
- * 在購物車頁面顯示枕套選擇器（如果有多款枕頭）
+ * 在購物車頁面顯示枕套選擇器（每個枕頭一個選擇器）
  */
-add_action( 'woocommerce_after_cart_table', 'nyb_display_pillowcase_selector', 5 );
+// add_action( 'woocommerce_after_cart_table', 'nyb_display_pillowcase_selector', 5 );
 function nyb_display_pillowcase_selector() {
     $cart = WC()->cart;
     if ( ! $cart ) {
@@ -1489,8 +1539,9 @@ function nyb_display_pillowcase_selector() {
         return;
     }
 
-    // 收集購物車中的催眠枕
-    $purchased_pillows = [];
+    // 收集購物車中的催眠枕（展開為單個枕頭）
+    $pillow_items = [];
+    $pillow_index = 0;
     foreach ( $cart->get_cart() as $cart_item ) {
         $variation_id = $cart_item['variation_id'];
 
@@ -1501,62 +1552,112 @@ function nyb_display_pillowcase_selector() {
 
         // 只處理催眠枕
         if ( isset( NYB_HYPNOTIC_PILLOW_VARS_MAP[ $variation_id ] ) ) {
-            if ( ! isset( $purchased_pillows[ $variation_id ] ) ) {
-                $purchased_pillows[ $variation_id ] = [
-                    'name' => $cart_item['data']->get_name(),
-                    'quantity' => 0
+            $quantity = $cart_item['quantity'];
+            // 將每個數量展開為獨立項目
+            for ( $i = 0; $i < $quantity; $i++ ) {
+                $pillow_items[] = [
+                    'index' => $pillow_index++,
+                    'variation_id' => $variation_id,
+                    'name' => $cart_item['data']->get_name()
                 ];
             }
-            $purchased_pillows[ $variation_id ]['quantity'] += $cart_item['quantity'];
         }
     }
 
-    // 如果只有一款枕頭，不顯示選擇器
-    if ( count( $purchased_pillows ) <= 1 ) {
+    // 如果沒有枕頭，不顯示
+    if ( empty( $pillow_items ) ) {
         return;
     }
 
-    // 獲取當前選擇
-    $current_selection = WC()->session->get( 'nyb_selected_pillow_variation' );
-    if ( ! $current_selection || ! isset( $purchased_pillows[ $current_selection ] ) ) {
-        // 預設選擇第一個
-        $current_selection = key( $purchased_pillows );
+    // 獲取當前選擇（陣列格式：[index => pillowcase_id]）
+    $current_selections = WC()->session->get( 'nyb_selected_pillowcases', array() );
+
+    // 建立所有可用的枕套選項
+    $available_pillowcases = array();
+    foreach ( NYB_PILLOWCASE_MAP as $pillow_var_id => $pillowcase_id ) {
+        $pillowcase_product = wc_get_product( $pillowcase_id );
+        if ( $pillowcase_product ) {
+            $available_pillowcases[] = [
+                'id' => $pillowcase_id,
+                'name' => $pillowcase_product->get_name()
+            ];
+        }
+    }
+
+    if ( empty( $available_pillowcases ) ) {
+        return;
     }
 
     ?>
     <div class="nyb-pillowcase-selector-notice woocommerce-info" style="margin-bottom: 20px; padding: 15px; border-left: 4px solid #83bd9a;">
-        <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
-            <div style="flex: 1; min-width: 200px;">
-                <div class="flex items-center gap-2"><span class="nyb-selector-icon" style="font-size: 24px;">🎁</span><strong style="color: #4a9d6f; font-size: 15px;">活動贈品：天絲枕套一件</strong></div>
-                <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">您購買了多款催眠枕，請選擇您想要的枕套款式：</p>
+        <div style="margin-bottom: 15px;">
+            <div class="flex items-center gap-2" style="margin-bottom: 8px;">
+                <span class="nyb-selector-icon" style="font-size: 24px;">🎁</span>
+                <strong style="color: #4a9d6f; font-size: 15px;">活動贈品：天絲枕套</strong>
             </div>
-            <div style="display: flex; gap: 10px; width: 100%;">
-                <select id="nyb-pillow-selector" class="nyb-pillow-selector" style="border: 2px solid #83bd9a; border-radius: 5px;font-size: 14px; min-width: 200px; height: 45px; line-height: 45px; padding: 0 12px;">
-                    <?php foreach ( $purchased_pillows as $var_id => $pillow ) :
-                        $pillowcase_id = NYB_PILLOWCASE_MAP[ $var_id ] ?? 0;
-                        if ( ! $pillowcase_id ) continue;
+            <p style="margin: 0; font-size: 13px; color: #666;">
+                您購買了 <?php echo count( $pillow_items ); ?> 個催眠枕，請為每個枕頭選擇對應的枕套款式：
+            </p>
+        </div>
 
-                        $pillowcase_product = wc_get_product( $pillowcase_id );
-                        $pillowcase_name = $pillowcase_product ? $pillowcase_product->get_name() : '天絲枕套';
-                    ?>
-                        <option value="<?php echo esc_attr( $var_id ); ?>" <?php selected( $current_selection, $var_id ); ?>>
-                            <?php echo esc_html( $pillow['name'] ) . ' → ' . esc_html( $pillowcase_name ); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <button type="button" id="nyb-update-pillowcase" class="button" style="background: #83bd9a; color: white; border: none; width: 75px; height: 45px; border-radius: 5px; cursor: pointer; font-weight: bold;">
-                    更新
-                </button>
-            </div>
+        <div id="nyb-pillowcase-selectors" style="display: flex; flex-direction: column; gap: 12px;">
+            <?php foreach ( $pillow_items as $item ):
+                $default_pillowcase_id = NYB_PILLOWCASE_MAP[ $item['variation_id'] ] ?? 0;
+                $selected_pillowcase_id = isset( $current_selections[ $item['index'] ] ) ? $current_selections[ $item['index'] ] : $default_pillowcase_id;
+            ?>
+                <div class="nyb-pillow-row" style="display: flex; align-items: center; gap: 10px; padding: 12px; background: white; border-radius: 5px; border: 1px solid #e0e0e0;">
+                    <div style="flex: 1; min-width: 180px;">
+                        <div style="font-weight: 500; color: #333; font-size: 14px; margin-bottom: 3px;">
+                            <?php echo esc_html( $item['name'] ); ?>
+                        </div>
+                        <div style="font-size: 12px; color: #999;">
+                            枕頭 #<?php echo $item['index'] + 1; ?>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 13px; color: #666; white-space: nowrap;">贈送枕套：</span>
+                        <select
+                            class="nyb-pillowcase-select"
+                            data-pillow-index="<?php echo esc_attr( $item['index'] ); ?>"
+                            style="border: 2px solid #83bd9a; border-radius: 5px; font-size: 14px; min-width: 200px; height: 40px; padding: 0 12px;"
+                        >
+                            <?php foreach ( $available_pillowcases as $pillowcase ): ?>
+                                <option
+                                    value="<?php echo esc_attr( $pillowcase['id'] ); ?>"
+                                    <?php selected( $selected_pillowcase_id, $pillowcase['id'] ); ?>
+                                >
+                                    <?php echo esc_html( $pillowcase['name'] ); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+
+        <div style="margin-top: 15px; text-align: right;">
+            <button type="button" id="nyb-update-pillowcases" class="button" style="background: #83bd9a; color: white; border: none; padding: 0 24px; height: 45px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px;">
+                確認更新
+            </button>
         </div>
     </div>
 
     <script type="text/javascript">
     jQuery(document).ready(function($) {
-        $('#nyb-update-pillowcase').on('click', function() {
+        $('#nyb-update-pillowcases').on('click', function() {
             var button = $(this);
             var originalText = button.text();
-            var pillowId = $('#nyb-pillow-selector').val();
+
+            // 收集所有選擇（使用陣列保存每個枕頭的選擇）
+            var choices = [];
+            $('.nyb-pillowcase-select').each(function() {
+                var pillowIndex = $(this).data('pillow-index');
+                var pillowcaseId = $(this).val();
+                choices.push({
+                    index: pillowIndex,
+                    pillowcase_id: pillowcaseId
+                });
+            });
 
             button.text('更新中...').prop('disabled', true);
 
@@ -1564,16 +1665,12 @@ function nyb_display_pillowcase_selector() {
                 url: '<?php echo admin_url( 'admin-ajax.php' ); ?>',
                 type: 'POST',
                 data: {
-                    action: 'nyb_save_pillowcase_choice',
+                    action: 'nyb_save_pillowcase_choices',
                     nonce: '<?php echo wp_create_nonce( 'nyb_pillowcase_choice' ); ?>',
-                    pillow_id: pillowId
+                    choices: JSON.stringify(choices)
                 },
                 success: function(response) {
                     if (response.success) {
-                        // 重新載入購物車以更新贈品
-                        $('body').trigger('update_checkout');
-                        $(document.body).trigger('wc_fragment_refresh');
-
                         // 顯示成功訊息
                         button.text('✓ 已更新').css('background', '#5da882');
 
@@ -1611,35 +1708,55 @@ function nyb_display_pillowcase_selector() {
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .nyb-pillow-selector:focus {
+        .nyb-pillowcase-select:focus {
             outline: none;
             border-color: #5da882;
             box-shadow: 0 0 0 3px rgba(131, 189, 154, 0.15);
         }
 
-        #nyb-update-pillowcase:hover {
+        #nyb-update-pillowcases:hover {
             background: #6ba88a !important;
             transform: translateY(-1px);
             box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+            transition: all 0.2s ease;
         }
 
-        #nyb-update-pillowcase:active {
+        #nyb-update-pillowcases:active {
             transform: translateY(0);
             background: #5da882 !important;
         }
 
+        #nyb-update-pillowcases:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .nyb-pillow-row {
+            transition: all 0.2s ease;
+        }
+
+        .nyb-pillow-row:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
         @media (max-width: 768px) {
-            .nyb-pillowcase-selector-notice > div {
+            .nyb-pillow-row {
                 flex-direction: column;
                 align-items: flex-start !important;
             }
 
-            .nyb-pillow-selector {
+            .nyb-pillow-row > div:last-child {
+                width: 100%;
+                flex-direction: column;
+                align-items: flex-start !important;
+            }
+
+            .nyb-pillowcase-select {
                 width: 100%;
                 min-width: auto;
             }
 
-            #nyb-update-pillowcase {
+            #nyb-update-pillowcases {
                 width: 100%;
             }
         }
@@ -1666,7 +1783,7 @@ function nyb_apply_activity_2( $cart, $stats, $context ) {
 
     if ( ! $gift_exists ) {
         $cart->add_to_cart( NYB_GIFT_FLEECE_BLANKET, 1, 0, array(), array( '_nyb_auto_gift' => 'bundle2' ) );
-        nyb_log( sprintf( "[活動2] 自動加入茸茸被 | ID: %s", NYB_GIFT_FLEECE_BLANKET ), $context );
+        nyb_log( sprintf( "[活動2] 自動加入兩用茸茸被 | ID: %s", NYB_GIFT_FLEECE_BLANKET ), $context );
     }
 
     // 將贈品價格設為 0
@@ -1727,12 +1844,13 @@ function nyb_apply_activity_3( $cart, $stats, $context ) {
 
 /**
  * =======================================================
- * 模組 7：活動4 - 滿額贈天絲床包四件組
+ * 模組 7：活動4 - 滿額贈天絲床包四件組（1床包+2枕套+1被套）
  * =======================================================
  */
 function nyb_apply_activity_4( $cart, $stats, $context ) {
     // 找出床墊的尺寸（用於確定床包價值）
     // 優先使用嗜睡床墊，如果沒有則使用賴床墊
+		// 如果賴床墊也沒有，則使用床墊集合中的第一個變體ID
     $mattress_var_id = null;
 
     foreach ( $cart->get_cart() as $cart_item ) {
@@ -1760,19 +1878,31 @@ function nyb_apply_activity_4( $cart, $stats, $context ) {
                 continue;
             }
 
-            if ( isset( NYB_LAI_MATTRESS_VARS_MAP[ $variation_id ] ) ) {
-                $mattress_var_id = $variation_id;
-                break;
-            }
+						if ( isset( NYB_BEDDING_VALUE_MAP[ $variation_id ] ) ) {
+								$mattress_var_id = $variation_id;
+								break;
+						}
+
+            // if ( isset( NYB_LAI_MATTRESS_VARS_MAP[ $variation_id ] ) ) {
+            //     $mattress_var_id = $variation_id;
+            //     break;
+            // }
         }
     }
 
+		if ( ! $mattress_var_id ) {
+				$mattress_var_id = NYB_SPRING_MATTRESS_VARS[0];
+		}
+
+		nyb_log( sprintf( "[活動4] 床墊 Variation ID: %s, 床包價值: %s", $mattress_var_id, NYB_BEDDING_VALUE_MAP[ $mattress_var_id ] ), $context );
+
     if ( $mattress_var_id && isset( NYB_BEDDING_VALUE_MAP[ $mattress_var_id ] ) ) {
+				nyb_log( sprintf( "[活動4] 床墊 Variation ID: %s, 床包價值: %s", $mattress_var_id, NYB_BEDDING_VALUE_MAP[ $mattress_var_id ] ), $context );
         // 添加虛擬床包商品到購物車
         $result = NYB_Virtual_Bedding_Product::add_to_cart( $cart, $mattress_var_id, 'bundle4' );
 
         if ( $result ) {
-            nyb_log( sprintf( "[活動4] 已添加天絲四件組床包到購物車 | 床墊 Variation ID: %s, 床包價值: %s", $mattress_var_id, NYB_BEDDING_VALUE_MAP[ $mattress_var_id ] ), $context );
+            nyb_log( sprintf( "[活動4] 已添加天絲床包四件組到購物車 | 床墊 Variation ID: %s, 床包價值: %s", $mattress_var_id, NYB_BEDDING_VALUE_MAP[ $mattress_var_id ] ), $context );
         }
     }
 }
@@ -2035,7 +2165,7 @@ function nyb_display_gift_quantity_on_checkout( $quantity_html, $cart_item, $car
     $product = $cart_item['data'];
 
     if ( $product->get_meta( '_is_free_gift' ) === 'yes' ) {
-        return $cart_item['quantity'] . ' <span style="color: #df565f; font-size: 0.9em;">(贈品)</span>';
+        return 'x ' . $cart_item['quantity'] . ' <span style="color: #df565f; font-size: 0.9em;">(贈品)</span>';
     }
 
     return $quantity_html;
