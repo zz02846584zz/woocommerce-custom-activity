@@ -65,6 +65,10 @@ define( 'NYB_HYPNOTIC_PILLOW_PARENT', 1307 );
 define( 'NYB_HYPNOTIC_PILLOW_VARS', [2983, 2984, 3044] );
 define( 'NYB_HYPNOTIC_PILLOW_VARS_MAP', array_flip( NYB_HYPNOTIC_PILLOW_VARS ) );
 
+// 床架（排除9折）
+define( 'NYB_BED_FRAME_PARENT_IDS', [4421] );
+define( 'NYB_BED_FRAME_PARENT_IDS_MAP', array_flip( NYB_BED_FRAME_PARENT_IDS ) );
+
 // 天絲枕套對應 (枕頭 -> 枕套)
 define( 'NYB_PILLOWCASE_MAP', [
     2983 => 4439,
@@ -178,60 +182,51 @@ add_filter( 'woocommerce_product_variation_get_price', 'nyb_apply_site_wide_disc
 add_filter( 'woocommerce_product_variation_get_sale_price', 'nyb_apply_site_wide_discount_sale', 99, 2 );
 
 function nyb_apply_site_wide_discount( $price, $product ) {
-    // ⚡ 快取商品折扣價格
-    // static $price_cache = [];
-
-    // $product_id = $product->get_id();
-    // $parent_id = $product->get_parent_id();
-
-    // // 快取鍵
-    // $cache_key = $product_id . '_' . $price;
-    // if ( isset( $price_cache[ $cache_key ] ) ) {
-    //     return $price_cache[ $cache_key ];
-    // }
-
-    // // ⚡ 使用 Hash Map 替代 in_array (O(1) vs O(n))
-    // if ( isset( NYB_ALL_GIFT_IDS_MAP[ $product_id ] ) || isset( NYB_ALL_GIFT_IDS_MAP[ $parent_id ] ) ) {
-    //     $price_cache[ $cache_key ] = $price;
-    //     return $price;
-    // }
-
-    // // 如果商品已有促銷價且在促銷期內，使用促銷價
-    // $sale_price = $product->get_sale_price();
-    // if ( $sale_price && $product->is_on_sale() ) {
-    //     $price_cache[ $cache_key ] = $sale_price;
-    //     return $sale_price;
-    // }
-
-    // 否則返回原價的9折
-		$is_free_gift = $product->get_meta( '_is_free_gift' );
-		if( $is_free_gift === 'yes' ) {
-			return 0;
-		}
-
-    $regular_price = $product->get_regular_price();
-    if ( $regular_price ) {
-        $discounted = $regular_price * NYB_GLOBAL_DISCOUNT;
-        // $price_cache[ $cache_key ] = $discounted;
-        return $discounted;
+    // 免費贈品直接返回 0
+    $is_free_gift = $product->get_meta( '_is_free_gift' );
+    if ( $is_free_gift === 'yes' ) {
+        return 0;
     }
 
-		// $product->set_sale_price( $price * NYB_GLOBAL_DISCOUNT );
-		// $product->set_regular_price( $price );
-		// $product->save();
+    // 床架排除9折
+    $product_id = $product->get_id();
+    $parent_id = $product->get_parent_id();
+    if ( isset( NYB_BED_FRAME_PARENT_IDS_MAP[ $product_id ] ) ||
+         isset( NYB_BED_FRAME_PARENT_IDS_MAP[ $parent_id ] ) ) {
+        return $price;
+    }
 
-    // $price_cache[ $cache_key ] = $price;
+    // 優先使用商品本身的促銷價
+    $sale_price = $product->get_sale_price();
+    if ( $sale_price && $product->is_on_sale() ) {
+        return $sale_price;
+    }
+
+    // 無促銷價則以原價打折
+    $regular_price = $product->get_regular_price();
+    if ( $regular_price ) {
+        return $regular_price * NYB_GLOBAL_DISCOUNT;
+    }
+
     return $price;
 }
 
 function nyb_apply_site_wide_discount_sale( $sale_price, $product ) {
+    // 床架排除9折
+    $product_id = $product->get_id();
+    $parent_id = $product->get_parent_id();
+    if ( isset( NYB_BED_FRAME_PARENT_IDS_MAP[ $product_id ] ) ||
+         isset( NYB_BED_FRAME_PARENT_IDS_MAP[ $parent_id ] ) ) {
+        return $sale_price;
+    }
+
     // 如果沒有設定促銷價，返回9折價格
-    // if ( empty( $sale_price ) ) {
-		$regular_price = $product->get_regular_price();
-		if ( $regular_price ) {
-				return $regular_price * NYB_GLOBAL_DISCOUNT;
-		}
-    // }
+    if ( empty( $sale_price ) ) {
+        $regular_price = $product->get_regular_price();
+        if ( $regular_price ) {
+            return $regular_price * NYB_GLOBAL_DISCOUNT;
+        }
+    }
 
     return $sale_price;
 }
@@ -239,19 +234,17 @@ function nyb_apply_site_wide_discount_sale( $sale_price, $product ) {
 // 在商品頁顯示「全館9折」標籤
 add_action( 'woocommerce_before_single_product', 'nyb_show_discount_badge', 5 );
 function nyb_show_discount_badge() {
-    // global $product;
+    global $product;
 
-    // 檢查是否為贈品
-    // $product_id = $product->get_id();
-    // $parent_id = $product->get_parent_id();
+    // 床架排除顯示9折標籤
+    $product_id = $product->get_id();
+    $parent_id = $product->get_parent_id();
+    if ( isset( NYB_BED_FRAME_PARENT_IDS_MAP[ $product_id ] ) ||
+         isset( NYB_BED_FRAME_PARENT_IDS_MAP[ $parent_id ] ) ) {
+        return;
+    }
 
-    // ⚡ 使用 Hash Map
-    // if ( isset( NYB_ALL_GIFT_IDS_MAP[ $product_id ] ) || isset( NYB_ALL_GIFT_IDS_MAP[ $parent_id ] ) ) {
-    //     return;
-    // }
-
-    // 檢查是否已有促銷價
-		echo '<div class="nyb-discount-badge" style="background: #df565f; color: white; padding: 8px 15px; display: inline-block; margin-bottom: 15px; border-radius: 5px; font-weight: bold;">🎉 新年優惠：全館9折</div>';
+    echo '<div class="nyb-discount-badge" style="background: #df565f; color: white; padding: 8px 15px; display: inline-block; margin-bottom: 15px; border-radius: 5px; font-weight: bold;">🎉 新年優惠：全館9折</div>';
 }
 
 /**
